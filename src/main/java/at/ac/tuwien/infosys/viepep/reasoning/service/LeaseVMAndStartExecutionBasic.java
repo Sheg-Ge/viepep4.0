@@ -23,14 +23,14 @@ import java.util.List;
 @Component
 @Scope("prototype")
 @Slf4j
-public class LeaseVMAndStartExecution {
+public class LeaseVMAndStartExecutionBasic {
 
     @Autowired
     private ReportDaoService reportDaoService;
     @Autowired
     private ViePEPClientService viePEPClientService;
     @Autowired
-    private ServiceExecution serviceExecution;
+    private ServiceExecutionBasic serviceExecution;
 
     @Value("${simulate}")
     private boolean simulate;

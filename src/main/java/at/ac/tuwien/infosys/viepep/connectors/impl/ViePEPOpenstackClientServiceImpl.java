@@ -392,7 +392,7 @@ public class ViePEPOpenstackClientServiceImpl implements ViePEPOpenstackClientSe
 
             String replace = CLOUD_INIT_DOCKER_START_TEMPL.replace("#{name}", deployedContainer.getAppID());
             String runCmd = String.format("/usr/bin/docker run --restart=\"always\" --name %s -p %s:%s --cpu-shares=%s %s",
-                    deployedContainer.getDockerImage().getAppId(),
+                    deployedContainer.getDockerImage().getServiceName(),
                     deployedContainer.getDockerImage().getExternPort(),
                     deployedContainer.getDockerImage().getInternPort(),
                     cpuShares,

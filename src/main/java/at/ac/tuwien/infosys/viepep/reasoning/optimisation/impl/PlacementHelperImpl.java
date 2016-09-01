@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 import java.util.*;
 
 /**
- * Created by philippwaibel on 18/05/16.
+ * Created by philippwaibel on 18/05/16. edited by Gerta Sheganaku
  */
 @Component
 @Slf4j
@@ -133,7 +133,7 @@ public class PlacementHelperImpl implements PlacementHelper {
 
     @Override
     public long getRemainingSetupTime(String vmId, Date now) {
-        for (VirtualMachine vm : cacheVirtualMachineService.getVMs()) {
+        for (VirtualMachine vm : cacheVirtualMachineService.getAllVMs()) {
             if (vm.getName().equals(vmId)) {
                 Date startedAt = vm.getStartedAt();
                 if (vm.isLeased() && startedAt != null && !vm.isStarted()) {
@@ -159,7 +159,7 @@ public class PlacementHelperImpl implements PlacementHelper {
     }
 
     @Override
-    public List<Element> getRunningSteps(boolean update) {
+    public List<Element> getRunningSteps() {
         List<Element> running = new ArrayList<>();
         for (WorkflowElement allWorkflowInstance : cacheWorkflowService.getRunningWorkflowInstances()) {//cacheWorkflowService.getAllWorkflowElements()) {     // TODO use getNextWorkflowInstances?
             running.addAll(getRunningProcessSteps(allWorkflowInstance.getElements()));
@@ -261,7 +261,7 @@ public class PlacementHelperImpl implements PlacementHelper {
                                     loopConstruct.setIterations(loopConstruct.getIterations() + 1);
                                     nextSteps.add(elementList.get(0));
                                     resetChildren(elementList);
-
+                                    
                                     elementDaoService.update(workflow);
                                     return nextSteps;
                                 }
@@ -271,7 +271,6 @@ public class PlacementHelperImpl implements PlacementHelper {
                             nextSteps.addAll(getNextSteps(subElement));
                         }
                     }
-
                 }
                 else { //sequence
                     nextSteps.addAll(getNextSteps(element));

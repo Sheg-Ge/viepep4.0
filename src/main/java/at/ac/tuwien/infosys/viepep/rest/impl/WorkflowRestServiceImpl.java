@@ -2,9 +2,10 @@ package at.ac.tuwien.infosys.viepep.rest.impl;
 
 import at.ac.tuwien.infosys.viepep.database.entities.*;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowService;
-import at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl.ProcessInstancePlacementProblemServiceImpl;
+import at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl.BasicProcessInstancePlacementProblemServiceImpl;
 import at.ac.tuwien.infosys.viepep.rest.WorkflowRestService;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,20 +35,25 @@ public class WorkflowRestServiceImpl implements WorkflowRestService {
     @Override
     @RequestMapping( value="/addWorkflowRequest", method = RequestMethod.POST, consumes = MediaType.APPLICATION_XML_VALUE)
     public void addWorkflow(@RequestBody WorkflowElement workflowElement) {
-        cacheWorkflowService.addWorkflowInstance(workflowElement);
+        Date date = new Date();
+        log.info("Recieved 1 new WorkflowElement");
+        workflowElement.setArrivedAt(date);
+        update(workflowElement);
+        log.info("add new WorkflowElement: " + workflowElement.toString());
+    	cacheWorkflowService.addWorkflowInstance(workflowElement);
+        log.info("Done: Add new WorkflowElement: " + workflowElement.toString());
     }
 
     @Override
     @RequestMapping( value="/addWorkflowRequests", method = RequestMethod.POST, consumes = MediaType.APPLICATION_XML_VALUE)
     public void addWorkflow(@RequestBody WorkflowElements workflowElement) {
 
-        synchronized (ProcessInstancePlacementProblemServiceImpl.SYNC_OBJECT) {
+        synchronized (BasicProcessInstancePlacementProblemServiceImpl.SYNC_OBJECT) {
 
             try {
                 Date date = new Date();
                 log.info("Recieved new WorkflowElements: " + workflowElement.getWorkflowElements().size());
                 for (WorkflowElement element : workflowElement.getWorkflowElements()) {
-
                     element.setArrivedAt(date);
                     update(element);
                     log.info("add new WorkflowElement: " + element.toString());
@@ -78,13 +84,12 @@ public class WorkflowRestServiceImpl implements WorkflowRestService {
                 Element subelement1 = element2.getElements().get(i);
                 setAllOthersToNotExecuted(element2.getElements(), subelement1);
                 element.getParent().setNextXOR(subelement1);
-            } else if (element instanceof LoopConstruct) {
+            }/* else if (element instanceof LoopConstruct) {
                 ((LoopConstruct) element).setNumberOfIterationsInWorstCase(1);
                 ((LoopConstruct) element).setIterations(1);
-            }
+            }*/ //TODO: CHECK just ignore loops? 
             update(element);
         }
-
     }
 
     private void setAllOthersToNotExecuted(List<Element> elements, Element ignore) {
@@ -101,5 +106,4 @@ public class WorkflowRestServiceImpl implements WorkflowRestService {
             }
         }
     }
-
 }

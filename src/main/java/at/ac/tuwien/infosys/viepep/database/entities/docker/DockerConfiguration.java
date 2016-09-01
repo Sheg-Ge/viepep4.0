@@ -6,6 +6,7 @@ public enum DockerConfiguration {
 
     MICRO_CORE(0.5, 50, 30),
     SINGLE_CORE(1, 100, 30),
+   // SINGLE_CORE(1, 300, 30),
     DUAL_CORE(2, 2 * 100, 30),
     QUAD_CORE(4, 4 * 100, 30),
     HEXA_CORE(8, 8 * 100, 30);

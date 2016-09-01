@@ -8,6 +8,7 @@ import javax.persistence.Entity;
 import javax.persistence.PrimaryKeyJoinColumn;
 import javax.persistence.Table;
 import javax.xml.bind.annotation.XmlRootElement;
+
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -20,7 +21,7 @@ import java.util.List;
 @Getter
 @Setter
 public class WorkflowElement extends Element {
-
+	
     private Date arrivedAt;
 
     public WorkflowElement(String name, long date) {
@@ -33,8 +34,16 @@ public class WorkflowElement extends Element {
         elements = new ArrayList<>();
     }
 
+//    public long calculateQoS() {
+//        return elements.get(0).calculateQoS();
+//    }
+    
     public long calculateQoS() {
-        return elements.get(0).calculateQoS();
+        long executionTime = 0;
+        for (Element element : elements) {
+            executionTime += element.calculateQoS();
+        }
+        return executionTime;
     }
 
     @Override

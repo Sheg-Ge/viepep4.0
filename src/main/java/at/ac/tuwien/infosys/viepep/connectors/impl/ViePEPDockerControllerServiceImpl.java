@@ -75,7 +75,7 @@ public class ViePEPDockerControllerServiceImpl implements ViePEPDockerController
             }
             List<String> names = container.names();
 
-            DockerImage dockerImage = cacheDockerService.parseByAppId(names.get(0));
+            DockerImage dockerImage = cacheDockerService.parseByServiceTypeId(names.get(0));
             if (dockerImage == null) {
                 log.info(image + " Unknown image ID ");
                 continue;
@@ -149,9 +149,7 @@ public class ViePEPDockerControllerServiceImpl implements ViePEPDockerController
                 } else {
                     throw new Exception("Could not start container " + containerName, ex);
                 }
-
             }
-
 
             dockerClient.startContainer(id);
             dockerContainer.setContainerID(id);
@@ -208,7 +206,7 @@ public class ViePEPDockerControllerServiceImpl implements ViePEPDockerController
             double containerCores = dockerContainer.getContainerConfiguration().cores;
             long cpuShares = 1024 / (long) Math.ceil(vmCores / containerCores);
 
-            currentScript = currentScript.replace("#{DOCKER_NAME}", dockerContainer.getDockerImage().getAppId());
+            currentScript = currentScript.replace("#{DOCKER_NAME}", dockerContainer.getDockerImage().getServiceName());
             currentScript = currentScript.replace("#{CPU_SHARE}", String.valueOf(cpuShares));
 
             String[] strings = sshConnector.execSSHCommand(virtualMachine, currentScript);
@@ -237,7 +235,7 @@ public class ViePEPDockerControllerServiceImpl implements ViePEPDockerController
     }
 
     private String getContainerName(DockerContainer dockerContainer) {
-        return String.format("%s", dockerContainer.getDockerImage().getAppId());
+        return String.format("%s", dockerContainer.getDockerImage().getServiceName());
     }
 
     private DefaultDockerClient getDockerClient(VirtualMachine virtualMachine) {

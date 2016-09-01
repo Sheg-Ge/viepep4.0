@@ -23,7 +23,7 @@ import java.util.List;
 @Component
 @Scope("prototype")
 @Slf4j
-public class ServiceExecution {
+public class ServiceExecutionBasic {
 
     @Autowired
     private ServiceInvoker serviceInvoker;

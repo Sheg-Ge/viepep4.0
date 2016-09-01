@@ -27,6 +27,8 @@ public class ViePEPAwsClientServiceImpl implements ViePEPAwsClientService {
     private static String AWS_DEFAULT_IMAGE = "CHANGE_ME";
     private static String AWS_DEFAULT_SUBNET = "CHANGE_ME";
     private static String AWS_DEFAULT_REGION = "CHANGE_ME";
+    private static String AWS_DEFAULT_SECURITYGROUP = "CHANGE_ME";
+    private static String AWS_KEY_NAME = "CHANGE_ME";
 
     private static AmazonEC2 ec2;
 
@@ -51,6 +53,8 @@ public class ViePEPAwsClientServiceImpl implements ViePEPAwsClientService {
             AWS_DEFAULT_IMAGE = prop.getProperty("AWS_DEFAULT_IMAGE");
             AWS_DEFAULT_SUBNET = prop.getProperty("AWS_DEFAULT_SUBNET");
             AWS_DEFAULT_REGION = prop.getProperty("AWS_DEFAULT_REGION");
+            AWS_DEFAULT_SECURITYGROUP = prop.getProperty("AWS_DEFAULT_SECURITYGROUP");
+            AWS_KEY_NAME = prop.getProperty("AWS_KEY_NAME");
 
             if (AWS_ACCESS_KEY_ID.isEmpty() || AWS_ACCESS_KEY.isEmpty()) {
                 throw new Exception("Could not find variables ");
@@ -122,7 +126,9 @@ public class ViePEPAwsClientServiceImpl implements ViePEPAwsClientService {
                 .withInstanceType(flavorName)
                 .withMinCount(1)
                 .withMaxCount(1)
-                .withSubnetId(AWS_DEFAULT_SUBNET);
+                .withSubnetId(AWS_DEFAULT_SUBNET)
+                .withSecurityGroupIds(AWS_DEFAULT_SECURITYGROUP)
+        		.withKeyName(AWS_KEY_NAME);
 
         ec2.runInstances(runInstancesRequest);
 

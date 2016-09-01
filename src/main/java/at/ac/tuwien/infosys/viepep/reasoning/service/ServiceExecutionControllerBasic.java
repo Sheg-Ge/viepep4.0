@@ -14,10 +14,10 @@ import java.util.*;
  */
 @Slf4j
 @Component
-public class ServiceExecutionController {
+public class ServiceExecutionControllerBasic {
 
     @Autowired
-    private LeaseVMAndStartExecution leaseVMAndStartExecution;
+    private LeaseVMAndStartExecutionBasic leaseVMAndStartExecution;
 
     @Async("serviceProcessExecuter")
     public void startInvocation(List<ProcessStep> processSteps) {

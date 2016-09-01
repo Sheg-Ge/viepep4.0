@@ -40,7 +40,7 @@ public class DockerContainer {
         this.containerConfiguration = containerConfiguration;
         this.dockerImage = dockerImage;
         this.executionTime = 3000;
-        this.amountOfPossibleInvocations = getInvocationAmount(dockerImage.getAppId());
+        this.amountOfPossibleInvocations = getInvocationAmount(dockerImage.getServiceName());
         this.deployTime = 30000;
     }
 
@@ -49,12 +49,12 @@ public class DockerContainer {
         this.containerConfiguration = containerConfiguration;
         this.executionTime = executionTime;
 
-        this.amountOfPossibleInvocations = getInvocationAmount(dockerImag.getAppId());
+        this.amountOfPossibleInvocations = getInvocationAmount(dockerImag.getServiceName());
         this.deployTime = 30000;
         this.dockerImage = dockerImag;
     }
 
-    private int getInvocationAmount(String appId) {
+    private int getInvocationAmount(String serviceName) {
         int perCore = 0;
         switch ((int) containerConfiguration.cores) {
             case 1:
@@ -73,7 +73,7 @@ public class DockerContainer {
                 perCore = (int) Math.round(containerConfiguration.cores * 100);
                 break;
         }
-        switch (appId) {
+        switch (serviceName) {
             case "app0":
                 return (int) (perCore * 1.0);
             case "app1":
@@ -94,17 +94,17 @@ public class DockerContainer {
 
         DockerContainer that = (DockerContainer) o;
 
-        return this.dockerImage.getAppId().equals(that.getAppID());
+        return this.dockerImage.getServiceName().equals(that.getAppID());
 
     }
 
     @Override
     public int hashCode() {
-        return this.dockerImage.getAppId().hashCode();
+        return this.dockerImage.getServiceName().hashCode();
     }
 
     public String getName() {
-        return containerConfiguration.name() + "_" + this.dockerImage.getAppId();
+        return containerConfiguration.name() + "_" + this.dockerImage.getServiceName();
     }
 
     public DockerConfiguration getContainerConfiguration() {
@@ -112,7 +112,7 @@ public class DockerContainer {
     }
 
     public String getAppID() {
-        return this.dockerImage.getAppId();
+        return this.dockerImage.getServiceName();
     }
 
     public int getAmountOfPossibleInvocations() {

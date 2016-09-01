@@ -40,7 +40,6 @@ public class ServiceInvoker {
     public InvocationResultDTO invoke(String url) {
         InvocationResultDTO invocationResult = new InvocationResultDTO();
 
-
         HttpGet httpGet = new HttpGet(url);
         Stopwatch stopWatch = Stopwatch.createUnstarted();
 

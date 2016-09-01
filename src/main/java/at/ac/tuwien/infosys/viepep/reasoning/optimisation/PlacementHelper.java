@@ -25,7 +25,7 @@ public interface PlacementHelper {
 
     long getRemainingSetupTime(String vmId, Date now);
 
-    List<Element> getRunningSteps(boolean update);
+    List<Element> getRunningSteps();
 
     List<Element> getRunningProcessSteps(List<Element> elements);
 

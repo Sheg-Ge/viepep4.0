@@ -21,8 +21,8 @@ import java.util.*;
  * Created by Philipp Hoenisch on 4/15/14.
  */
 @Slf4j
-@Component
-public class ProcessInstancePlacementProblemServiceImpl extends NativeLibraryLoader implements ProcessInstancePlacementProblemService {
+//@Component
+public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibraryLoader implements ProcessInstancePlacementProblemService {
 
     @Autowired
     private PlacementHelper placementHelper;
@@ -70,7 +70,7 @@ public class ProcessInstancePlacementProblemServiceImpl extends NativeLibraryLoa
         /**
          * initialize vm map
          */
-        List<VirtualMachine> vMs = cacheVirtualMachineService.getVMs();
+        List<VirtualMachine> vMs = cacheVirtualMachineService.getAllVMs();
         updateVMap(vMs);
 
 
@@ -89,7 +89,7 @@ public class ProcessInstancePlacementProblemServiceImpl extends NativeLibraryLoa
         synchronized (SYNC_OBJECT) {
             placementHelper.setFinishedWorkflows();
 
-            updateVMap(cacheVirtualMachineService.getVMs());
+            updateVMap(cacheVirtualMachineService.getAllVMs());
             updateUsageMap();
             allRunningSteps = null;
             nextSteps = new HashMap<>();
@@ -104,6 +104,7 @@ public class ProcessInstancePlacementProblemServiceImpl extends NativeLibraryLoa
             }
         }
 
+        System.out.println("optimize date tau " + tau_t);
         this.tau_t = tau_t;
 //        M = 100000 / 1000;
         M = 10000000;
@@ -850,7 +851,7 @@ public class ProcessInstancePlacementProblemServiceImpl extends NativeLibraryLoa
         }
     }
 
-    @Override
+    //@Override
     public VirtualMachine getVMById(String vmID) {
         Set<VMType> vmTypes = vmMap.keySet();
         for (VMType vmType : vmTypes) {
@@ -1144,6 +1145,7 @@ public class ProcessInstancePlacementProblemServiceImpl extends NativeLibraryLoa
 
     public int getBeta(int v, int k) {
         VirtualMachine vmById = getVMById(v + "_" + k);
+        System.out.println("asdf asdf asdf asdf asdf dsf sdf "+vmById);
         return vmById.isLeased() ? 1 : 0;
     }
 
@@ -1169,7 +1171,7 @@ public class ProcessInstancePlacementProblemServiceImpl extends NativeLibraryLoa
         return 0;
     }
 
-    @Override
+//    @Override
     public Collection<Object> getVariables() {
         return this.problem.getVariables();
     }

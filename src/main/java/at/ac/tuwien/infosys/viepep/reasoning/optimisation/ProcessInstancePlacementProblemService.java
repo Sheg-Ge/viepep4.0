@@ -6,7 +6,7 @@ import net.sf.javailp.Result;
 import java.util.Date;
 
 /**
- * Created by Philipp Hoenisch on 5/5/14.
+ * Created by Philipp Hoenisch on 5/5/14. modified by Gerta Sheganaku
  */
 public interface ProcessInstancePlacementProblemService {
 
@@ -18,9 +18,9 @@ public interface ProcessInstancePlacementProblemService {
 
     void initializeParameters();
 
-    VirtualMachine getVMById(String vmID);
+//    VirtualMachine getVMById(String vmID);
 
-    int getZ(String processStepType, int v, int k);
+//    int getZ(String processStepType, int v, int k);
 
-    java.util.Collection<Object> getVariables();
+//    java.util.Collection<Object> getVariables();
 }

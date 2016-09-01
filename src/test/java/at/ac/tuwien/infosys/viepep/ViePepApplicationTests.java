@@ -33,10 +33,9 @@ import static org.junit.Assert.*;
 @WebAppConfiguration
 @IntegrationTest("server.port:0")
 @TestPropertySource(properties = {"simulation = true", "autostart = false"})
-@ActiveProfiles("test")
+@ActiveProfiles({"test", "docker"})
 @Slf4j
 public class ViePepApplicationTests {
-
 
 	@Value("${local.server.port}")
 	int port;
@@ -55,51 +54,48 @@ public class ViePepApplicationTests {
 	@Ignore
 	@Test
 	public void testStartNewOpenStackVM_AddContainer_ResizeContainer_Terminate() throws Exception {
-		viePEPOpenstackClient.initialize();
-		dockerControllerService.initialize();
-		//starting a new VM instance
-		//exampleService can be ignored
-		String testVMIp = viePEPOpenstackClient.startNewVM("testVM", VMType.DUAL_CORE.flavor(), "exampleService");
-		assertThat(testVMIp, notNullValue());
-
-		//starting a new docker container
-		DockerImage dockerImage = new DockerImage("exampleApp", "bonomat", "nodejs-hello-world", 8090, 3000);
-		//DockerImage dockerImage = new DockerImage("exampleApp", "bonomat", "viepep-backend-services", 8080, 8080);
-		DockerConfiguration dockerConfiguration = DockerConfiguration.SINGLE_CORE;
-
-		DockerContainer dockerContainer = new DockerContainer(dockerImage, dockerConfiguration);
-
-		VirtualMachine virtualMachine = new VirtualMachine("dummyVM", VMType.DUAL_CORE);
-		virtualMachine.setIpAddress(testVMIp);
-		//  virtualMachine.setIpAddress("128.130.172.226"); //TODO change this manualy if run from outside of the cloud,
-		// but make sure to assign this IP to the VM you just created
-
-		Thread.sleep(30 * 1000);
-
-		log.info("VM running, start docker...");
-		dockerContainer = dockerControllerService.startDocker(virtualMachine, dockerContainer);
-
-		//collect some docker information
-		ContainerInfo dockerInfo = dockerControllerService.getDockerInfo(virtualMachine, dockerContainer);
-		assertThat(dockerInfo, notNullValue());
-
-		log.info("Docker running, change docker config...");
-		//change docker configuration
-		dockerContainer.setContainerConfiguration(DockerConfiguration.DUAL_CORE);
-		dockerContainer = dockerControllerService.resizeContainer(virtualMachine, dockerContainer);
-
-		log.info("Docker config changed, stop docker...");
-		//stop docker
-		boolean b = dockerControllerService.stopDocker(virtualMachine, dockerContainer);
-		assertTrue(b);
-
-
-
+//		viePEPOpenstackClient.initialize();
+//		dockerControllerService.initialize();
+//		//starting a new VM instance
+//		//exampleService can be ignored
+//		String testVMIp = viePEPOpenstackClient.startNewVM("testVM", VMType.DUAL_CORE.flavor(), "exampleService");
+//		assertThat(testVMIp, notNullValue());
+//
+//		//starting a new docker container
+//		DockerImage dockerImage = new DockerImage("exampleApp", "bonomat", "nodejs-hello-world", 8090, 3000);
+//		//DockerImage dockerImage = new DockerImage("exampleApp", "bonomat", "viepep-backend-services", 8080, 8080);
+//		DockerConfiguration dockerConfiguration = DockerConfiguration.SINGLE_CORE;
+//
+//		DockerContainer dockerContainer = new DockerContainer(dockerImage, dockerConfiguration);
+//
+//		VirtualMachine virtualMachine = new VirtualMachine("dummyVM", VMType.DUAL_CORE);
+//		virtualMachine.setIpAddress(testVMIp);
+//		//  virtualMachine.setIpAddress("128.130.172.226"); //TODO change this manualy if run from outside of the cloud,
+//		// but make sure to assign this IP to the VM you just created
+//
+//		Thread.sleep(30 * 1000);
+//
+//		log.info("VM running, start docker...");
+//		dockerContainer = dockerControllerService.startDocker(virtualMachine, dockerContainer);
+//
+//		//collect some docker information
+//		ContainerInfo dockerInfo = dockerControllerService.getDockerInfo(virtualMachine, dockerContainer);
+//		assertThat(dockerInfo, notNullValue());
+//
+//		log.info("Docker running, change docker config...");
+//		//change docker configuration
+//		dockerContainer.setContainerConfiguration(DockerConfiguration.DUAL_CORE);
+//		dockerContainer = dockerControllerService.resizeContainer(virtualMachine, dockerContainer);
+//
+//		log.info("Docker config changed, stop docker...");
+//		//stop docker
+//		boolean b = dockerControllerService.stopDocker(virtualMachine, dockerContainer);
+//		assertTrue(b);
 	}
 
-	@Ignore
 	@Test
 	public void testStartNewAWSVM_AddContainer_ResizeContainer_Terminate() throws Exception {
+		log.info("TEST testStartNewAWSVM_AddContainer_ResizeContainer_Terminate started...");
 
 		viePEPAwsClientService.initialize();
 		dockerControllerService.initialize();
@@ -110,7 +106,8 @@ public class ViePepApplicationTests {
 		assertThat(testVMIp, notNullValue());
 
 		//starting a new docker container
-		DockerImage dockerImage = new DockerImage("exampleApp", "bonomat", "nodejs-hello-world", 8090, 3000);
+		//DockerImage dockerImage = new DockerImage("exampleApp", "bonomat", "nodejs-hello-world", 8090, 3000);
+		DockerImage dockerImage = new DockerImage("exampleApp", "shegge", "viepep-docker-1", 8080, 8080);
 		//DockerImage dockerImage = new DockerImage("exampleApp", "bonomat", "viepep-backend-services", 8080, 8080);
 		DockerConfiguration dockerConfiguration = DockerConfiguration.SINGLE_CORE;
 
@@ -119,7 +116,7 @@ public class ViePepApplicationTests {
 		VirtualMachine virtualMachine = new VirtualMachine("dummyVM", VMType.AWS_SINGLE_CORE);
 		virtualMachine.setIpAddress(testVMIp);
 
-		Thread.sleep(30 * 1000);
+		Thread.sleep(40 * 1000);
 
 		log.info("VM running, start docker...");
 		dockerContainer = dockerControllerService.startDocker(virtualMachine, dockerContainer);
@@ -137,12 +134,13 @@ public class ViePepApplicationTests {
 		//stop docker
 		boolean b = dockerControllerService.stopDocker(virtualMachine, dockerContainer);
 		assertTrue(b);
-
-
-
+		log.info("Docker stopped, stop VM...");
+		boolean c = viePEPAwsClientService.terminateInstanceByIP(testVMIp);
+		assertTrue(c);
+		log.info("VM stopped.");
 	}
 
-
+	@Ignore
 	@Test
 	public void persistWorkflow_ShouldPersistWorkflow() {
 
@@ -152,7 +150,6 @@ public class ViePepApplicationTests {
 		WorkflowElement workflowFromDatabase = workflowElementRepository.findOne(workflowElement.getId());
 		assertNotNull(workflowFromDatabase);
 	}
-
 
 	private WorkflowElement createFinishedWorkflow() {
 		String name = "finishedWorkflow";

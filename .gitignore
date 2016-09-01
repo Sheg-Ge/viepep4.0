@@ -17,3 +17,10 @@ viepep4.0.properties
 mysql.properties
 docker.properties
 ssh.properties
+
+.classpath
+.project
+.settings/
+log/
+target/
+src/main/resources/docker-config/swarm-node-cloud-config.yaml

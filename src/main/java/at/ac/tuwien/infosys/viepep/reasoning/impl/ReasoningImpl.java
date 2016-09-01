@@ -4,10 +4,12 @@ import at.ac.tuwien.infosys.viepep.database.entities.ProcessStep;
 import at.ac.tuwien.infosys.viepep.database.entities.WorkflowElement;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowService;
 import at.ac.tuwien.infosys.viepep.database.services.WorkflowDaoService;
+import at.ac.tuwien.infosys.viepep.reasoning.ProcessOptimizationResults;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.ProcessInstancePlacementProblemService;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.javailp.Result;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.scheduling.annotation.Async;
@@ -20,12 +22,12 @@ import java.util.List;
 import java.util.concurrent.Future;
 
 /**
- * Created by philippwaibel on 17/05/16.
+ * Created by philippwaibel on 17/05/16. edited by Gerta Sheganaku
  */
 @Component
 @Scope("prototype")
 @Slf4j
-public class Reasoning {
+public class ReasoningImpl {
 
     @Autowired
     private ProcessOptimizationResults processOptimizationResults;
@@ -40,20 +42,16 @@ public class Reasoning {
 
     private SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-    private Date tau_t;
+//    private Date tau_t;
     private boolean run = true;
 
 
     @Async
-    public Future<Boolean> runReasoning(Date date) throws InterruptedException {
-        tau_t = date;
+    public Future<Boolean> runReasoning(Date date, boolean autoTerminate) throws InterruptedException {
 
         resourcePredictionService.initializeParameters();
         run = true;
 
-        Result optimize = null;
-        long tau_t_0_time = tau_t.getTime();
-        Date tau_t_0 = tau_t;
         int count = 0;
         int emptyCounter = 0;
 
@@ -61,13 +59,11 @@ public class Reasoning {
         while (run) {
             synchronized (this) {
                 try {
-                    long difference = performOptimisation(tau_t_0_time, tau_t_0);
+                    long difference = performOptimisation();
 
                     Thread.sleep(difference);
 
                     //finishWorkflow tau t for next round
-                    tau_t_0 = new Date();
-                    tau_t_0_time = tau_t_0.getTime();
                     boolean empty = cacheWorkflowService.getRunningWorkflowInstances().isEmpty();
                     if(empty) {
                         emptyCounter++;
@@ -76,7 +72,9 @@ public class Reasoning {
                         emptyCounter = 0;
                     }
                     if ((count >= 150 && empty) || emptyCounter > 4) {
-                        run = false;
+                    	if (autoTerminate) {
+                    		run = false;
+                    	}
                     }
                     count++;
                 } catch (Exception ex) {
@@ -123,7 +121,7 @@ public class Reasoning {
 
     private void waitUntilAllProcessDone() {
         int times = 0;
-        int size = placementHelper.getRunningSteps(true).size();
+        int size = placementHelper.getRunningSteps().size();
         while (size != 0 && times <= 5) {
             log.info("there are still steps running waiting 1 minute: steps running: " + size);
             try {
@@ -131,16 +129,16 @@ public class Reasoning {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            size = placementHelper.getRunningSteps(true).size();
+            size = placementHelper.getRunningSteps().size();
             times++;
         }
     }
 
-    private long performOptimisation(long tau_t_0_time, Date tau_t_0) throws Exception {
+    private long performOptimisation() throws Exception {
 
+        Date tau_t_0 = new Date();
         log.info("---------tau_t_0 : " + tau_t_0 + " ------------------------");
-        log.info("---------tau_t_0.time : " + tau_t_0_time + " ------------------------");
-        tau_t_0 = new Date();
+        log.info("---------tau_t_0.time : " + tau_t_0.getTime() + " ------------------------");
         Result optimize = resourcePredictionService.optimize(tau_t_0);
 
         if (optimize == null) {
@@ -155,10 +153,7 @@ public class Reasoning {
         if (difference < 0) {
             difference = 0;
         }
-        final Result finalOptimize = optimize;
-        final Date finalTau_t_ = tau_t_0;
-
-        processOptimizationResults.processResults(finalOptimize, finalTau_t_);
+        processOptimizationResults.processResults(optimize, tau_t_0);
 
         return difference;
     }

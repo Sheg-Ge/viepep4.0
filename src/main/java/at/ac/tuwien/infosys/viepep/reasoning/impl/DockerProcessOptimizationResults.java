@@ -6,11 +6,13 @@ import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
 import at.ac.tuwien.infosys.viepep.database.entities.WorkflowElement;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheVirtualMachineService;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowService;
+import at.ac.tuwien.infosys.viepep.reasoning.ProcessOptimizationResults;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
-import at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl.ProcessInstancePlacementProblemServiceImpl;
-import at.ac.tuwien.infosys.viepep.reasoning.service.ServiceExecutionController;
+import at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl.BasicProcessInstancePlacementProblemServiceImpl;
+import at.ac.tuwien.infosys.viepep.reasoning.service.ServiceExecutionControllerBasic;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.javailp.Result;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.scheduling.annotation.Async;
@@ -21,17 +23,17 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * Created by philippwaibel on 18/05/16.
+ * @author Gerta Sheganaku
  */
 @Slf4j
-@Component
+//@Component
 @Scope("prototype")
-public class ProcessOptimizationResults {
+public class DockerProcessOptimizationResults implements ProcessOptimizationResults {
 
     @Autowired
     private PlacementHelper placementHelper;
     @Autowired
-    private ServiceExecutionController serviceExecutionController;
+    private ServiceExecutionControllerBasic serviceExecutionController;
     @Autowired
     private CacheVirtualMachineService cacheVirtualMachineService;
     @Autowired
@@ -48,7 +50,7 @@ public class ProcessOptimizationResults {
         StringBuilder stringBuilder2 = new StringBuilder();
 
         stringBuilder2.append("------------------------- VMs running ----------------------------\n");
-        List<VirtualMachine> vMs = cacheVirtualMachineService.getVMs();
+        List<VirtualMachine> vMs = cacheVirtualMachineService.getAllVMs();
         for(VirtualMachine vm : vMs) {
             if(vm.isLeased() && vm.isStarted()) {
                 stringBuilder2.append(vm.toString()).append("\n");
@@ -130,7 +132,7 @@ public class ProcessOptimizationResults {
                     if (virtualMachine.getToBeTerminatedAt() != null) {
                         date = virtualMachine.getToBeTerminatedAt();
                     }
-                    virtualMachine.setToBeTerminatedAt(new Date(date.getTime() + (ProcessInstancePlacementProblemServiceImpl.LEASING_DURATION * y_v_k_number.intValue())));
+                    virtualMachine.setToBeTerminatedAt(new Date(date.getTime() + (BasicProcessInstancePlacementProblemServiceImpl.LEASING_DURATION * y_v_k_number.intValue())));
                 }
             }
 
@@ -152,12 +154,11 @@ public class ProcessOptimizationResults {
     }
 
     private void cleanupVMs(Date tau_t_0) {
-        List<VirtualMachine> vMs = cacheVirtualMachineService.getVMs();
+        List<VirtualMachine> vMs = cacheVirtualMachineService.getAllVMs();
         for (VirtualMachine vM : vMs) {
             if (vM.getToBeTerminatedAt() != null && vM.getToBeTerminatedAt().before((tau_t_0))) {
                 placementHelper.terminateVM(vM);
             }
         }
     }
-
 }

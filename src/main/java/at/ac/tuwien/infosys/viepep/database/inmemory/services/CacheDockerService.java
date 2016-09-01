@@ -1,13 +1,23 @@
 package at.ac.tuwien.infosys.viepep.database.inmemory.services;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
+import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerConfiguration;
+import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
 import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerImage;
 import at.ac.tuwien.infosys.viepep.database.inmemory.database.InMemoryCacheImpl;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * Created by philippwaibel on 13/06/16.
+ * Created by philippwaibel on 13/06/16. edited by Gerta Sheganaku
  */
 @Component
 public class CacheDockerService {
@@ -18,51 +28,73 @@ public class CacheDockerService {
     @Value("${docker.repo.name}")
     private String repoName;
     @Value("${docker.image.name}")
-    private String imageName;
+    private String imageNamePrefix;
 
-    private Integer D = 3; // how many docker types
-    private Integer C = 4; // different configurations of each docker type
+    private Integer SERVICE_TYPES = 10; // how many docker images (mapping one service types)
+    private Integer CONTAINERS_PER_IMAGE = 4; //different configurations per Image/Service Type
+    
+    public void initializeDockerContainers() {
+        for (int st = 1; st <= SERVICE_TYPES; st++) {
+            DockerImage dockerImage = parseByServiceTypeId("service" + st);
 
-
-    public void initializeDockerImages() {
-        for (int c = 0; c < D; c++) {
-            DockerImage dockerImage = parseByAppId("app" + c);
-            inMemoryCache.addToDockerImageList(dockerImage);
+            for(int c=1; c<=CONTAINERS_PER_IMAGE; c++) {
+            	DockerConfiguration configuration = null;
+            	switch (c) {
+                case 1:
+                    configuration = DockerConfiguration.SINGLE_CORE;
+                    break;
+                case 2:
+                    configuration = DockerConfiguration.DUAL_CORE;
+                    break;
+                case 3:
+                    configuration = DockerConfiguration.QUAD_CORE;
+                    break;
+                case 4:
+                    configuration = DockerConfiguration.HEXA_CORE;
+                    break;
+            	}
+				inMemoryCache.addDockerContainer(new DockerContainer(dockerImage, configuration));
+            }
         }
     }
+    
+    public Set<DockerImage> getDockerImages() {
+        return inMemoryCache.getDockerMap().keySet();
+    }
+    
+    public List<DockerContainer> getDockerContainers(DockerImage dockerImage) {
+        return inMemoryCache.getDockerMap().get(dockerImage);
+    }
+    
+    public List<DockerContainer> getAllDockerContainers() {
+    	List<DockerContainer> allContainers = new ArrayList<DockerContainer>();
+    	for(DockerImage dockerImage : getDockerImages()) {
+    		allContainers.addAll(getDockerContainers(dockerImage));
+    	}
+    	return allContainers;
+    }
+    
 
-    public DockerImage parseByImageName(String imageFullName) {
-        if (imageFullName.contains("app0")) {
-            return new DockerImage("app" + 0, repoName, imageName, 8090, 3000);
-        }
-        if (imageFullName.contains("app1")) {
-            return new DockerImage("app" + 1, repoName, imageName, 8091, 3000);
+    public Map<DockerImage, List<DockerContainer>> getDockerMap() {
+    	return inMemoryCache.getDockerMap();
+    }
 
-        }
-        if (imageFullName.contains("app2")) {
-            return new DockerImage("app" + 2, repoName, imageName, 8092, 3000);
-        }
-        if (imageFullName.contains("app3")) {
-            return new DockerImage("app" + 3, repoName, imageName, 8093, 3000);
-        }
+    private DockerImage parseByImageName(String imageFullName) {
+    	for(int st=1; st<=SERVICE_TYPES; st++) {
+    		if (imageFullName.contains("service"+st)) {
+                return new DockerImage("service"+st, repoName, imageNamePrefix+st, (8080+st), 8080);
+            }
+    	}
         return null;
     }
 
-
-    public DockerImage parseByAppId(String appId) {
-        if (appId.contains("app0")) {
-            return parseByImageName("app0");
-        }
-        if (appId.contains("app1")) {
-            return parseByImageName("app1");
-        }
-        if (appId.contains("app2")) {
-            return parseByImageName("app2");
-        }
-        if (appId.contains("app3")) {
-            return parseByImageName("app3");
-        }
-        return parseByImageName("app0");
+    public DockerImage parseByServiceTypeId(String serviceType) {
+    	for(int st=1; st<=SERVICE_TYPES; st++) {
+    		if(serviceType.contains("service"+st)) {
+    			return parseByImageName("service"+st);
+    		}
+    	}
+        return parseByImageName("service1");
     }
 
 }

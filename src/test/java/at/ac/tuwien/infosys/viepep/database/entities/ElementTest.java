@@ -36,18 +36,23 @@ public class ElementTest {
         Element workflow = new WorkflowElement(id, tau_t.getTime() + 1000 * 200);
         Sequence seq = new Sequence(id + "-seq");
         ProcessStep step1 = new ProcessStep(id + ".0", true, ServiceType.Task1, workflow.getName());
-        step1.setFinishedAt(tau_t);
         seq.addElement(step1);
 
         ProcessStep step2 = new ProcessStep(id + ".1", true, ServiceType.Task2, workflow.getName());
-        step2.setFinishedAt(new Date(tau_t.getTime() + 10000L));
         seq.addElement(step2);
 
         ProcessStep step3 = new ProcessStep(id + ".2", true, ServiceType.Task3, workflow.getName());
-        step3.setFinishedAt(new Date(tau_t.getTime() + 20000L));
         seq.addElement(step3);
 
+        ProcessStep step4 = new ProcessStep(id + ".3", true, ServiceType.Task4, workflow.getName());
+        seq.addElement(step4);
+        
         workflow.addElement(seq);
+
+        step1.setFinishedAt(tau_t);
+        step2.setFinishedAt(new Date(tau_t.getTime() + 10000L));
+        step3.setFinishedAt(new Date(tau_t.getTime() + 20000L));
+        
         return workflow;
     }
 

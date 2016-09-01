@@ -43,6 +43,7 @@ public class ANDConstruct extends Element {
             executionTime = Math.max(element.calculateQoS(), executionTime);
         }
         return executionTime;
+    
     }
 
     @Override
@@ -60,9 +61,9 @@ public class ANDConstruct extends Element {
                 }
             } else {
                 Date currentElementFinishedAt = current.getFinishedAt();
-                Date lastExecuztedMaxElementFinished = lastExecutedMaxElement.getFinishedAt();
-                if (currentElementFinishedAt != null && lastExecuztedMaxElementFinished != null
-                        && currentElementFinishedAt.after(lastExecuztedMaxElementFinished)) {
+                Date lastExecutedMaxElementFinished = lastExecutedMaxElement.getFinishedAt();
+                if (currentElementFinishedAt != null && lastExecutedMaxElementFinished != null
+                        && currentElementFinishedAt.after(lastExecutedMaxElementFinished)) {
                     lastExecutedMaxElement = current;
                 }
             }

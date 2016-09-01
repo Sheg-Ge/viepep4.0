@@ -4,11 +4,13 @@ package at.ac.tuwien.infosys.viepep.database.entities;
 import javax.persistence.DiscriminatorValue;
 import javax.persistence.Entity;
 import javax.xml.bind.annotation.XmlRootElement;
+
 import java.util.ArrayList;
+import java.util.List;
 
 
 /**
- * @author Waldemar Ankudin modified by Turgay Sahin and Mathieu Muench
+ * @author Waldemar Ankudin modified by Turgay Sahin and Mathieu Muench, Gerta Sheganaku
  */
 
 @XmlRootElement(name = "Sequence")
@@ -42,7 +44,26 @@ public class Sequence extends Element {
 
     @Override
     public ProcessStep getLastExecutedElement() {
-        return elements.get(elements.size() - 1).getLastExecutedElement();
+        //return elements.get(elements.size() - 1).getLastExecutedElement();	//TODO: like honestly?
+        
+        List<Element> allChildren = new ArrayList<>();
+        for (Element element : elements) {
+            allChildren.add(element.getLastExecutedElement());
+        }
+        ProcessStep lastExecutedMaxElement = null;
+        for (Element allChild : allChildren) {
+            ProcessStep current = (ProcessStep) allChild;
+            if (lastExecutedMaxElement == null && current != null) {
+                if (current.hasBeenExecuted()) {
+                    lastExecutedMaxElement = current;
+                }
+            } else if (current != null) {
+                if (current.getFinishedAt().after(lastExecutedMaxElement.getFinishedAt())) {
+                    lastExecutedMaxElement = current;
+                }
+            }
+        }
+        return lastExecutedMaxElement;
     }
 
     @Override

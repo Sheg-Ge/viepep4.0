@@ -6,6 +6,7 @@ import javax.persistence.Table;
 import javax.xml.bind.annotation.XmlRootElement;
 
 /**
+ * @author Gerta Sheganaku
  */
 @XmlRootElement(name = "DockerImage")
 @Entity
@@ -15,8 +16,8 @@ public class DockerImage {
     public DockerImage() {
     }
 
-    public DockerImage(String appId, String repoName, String imageName, Integer externPort, Integer internPort) {
-        this.appId = appId;
+    public DockerImage(String serviceName, String repoName, String imageName, Integer externPort, Integer internPort) {
+        this.serviceName = serviceName;
         this.repoName = repoName;
         this.imageName = imageName;
         this.internPort = internPort;
@@ -24,7 +25,7 @@ public class DockerImage {
     }
 
     @Id
-    private String appId;
+    private String serviceName;
 
     private String imageName;
     private String repoName;
@@ -60,12 +61,12 @@ public class DockerImage {
         this.externPort = externPort;
     }
 
-    public String getAppId() {
-        return appId;
+    public String getServiceName() {
+        return serviceName;
     }
 
-    public void setAppId(String appId) {
-        this.appId = appId;
+    public void setServiceName(String serviceName) {
+        this.serviceName = serviceName;
     }
 
     public void setImageName(String imageName) {

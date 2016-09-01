@@ -1,4 +1,4 @@
-package at.ac.tuwien.infosys.viepep.reasoning.impl;
+package at.ac.tuwien.infosys.viepep.reasoning.optimisation.docker;
 
 
 import at.ac.tuwien.infosys.viepep.connectors.ViePEPClientService;
@@ -15,7 +15,7 @@ import java.util.List;
  *
  */
 @Component
-public class GertaOptimizer {
+public class DockerOptimizer {
 
     @Autowired
     private CacheWorkflowService cacheWorkflowService;
@@ -27,7 +27,7 @@ public class GertaOptimizer {
     private ServiceInvoker serviceInvoker;
 
 
-    private GertaOptimizer() {
+    private DockerOptimizer() {
     }
 
     public void startOptimation() {

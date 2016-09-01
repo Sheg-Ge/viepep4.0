@@ -9,6 +9,9 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElementWrapper;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
+
+import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -18,7 +21,7 @@ import java.util.List;
 /**
  * Represents the smallest element of the workflow model.
  *
- * @author Waldemar Ankudin modified by Turgay Sahin and Mathieu Muench
+ * @author Waldemar Ankudin modified by Turgay Sahin and Mathieu Muench, Gerta Sheganaku
  */
 @XmlRootElement(name = "ProcessStep")
 @Entity(name = "ProcessStep")
@@ -38,9 +41,13 @@ public class ProcessStep extends Element {
     private boolean isScheduled;
     private Date scheduledStartedAt;
 
-    @ManyToOne//(cascade = CascadeType.ALL)
+    @ManyToOne//(cascade = CascadeType.ALL)	//TODO: CHECK
     private VirtualMachine scheduledAtVM;
+    
+    @ManyToOne//(cascade = CascadeType.ALL)
+    private DockerContainer scheduledAtContainer;
 
+    
     private String workflowName;
 
     @XmlElementWrapper(name="restrictedVMs")
@@ -106,7 +113,7 @@ public class ProcessStep extends Element {
      * [0] Execution Time, [1] Cost, [2] Reliability, [Throughput]
      */
     public long calculateQoS() {
-        return this.serviceType.makeSpan;
+        return getExecutionTime();
     }
 
     public boolean hasBeenExecuted() {
@@ -151,6 +158,7 @@ public class ProcessStep extends Element {
         String startDateformat = startDate != null ? formatter.format(startDate) : null;
         String finishedAtformat = finishedAt != null ? formatter.format(finishedAt) : null;
         String vmName = scheduledAtVM != null ? scheduledAtVM.getName() : null;
+        String dockerName = scheduledAtContainer != null ? scheduledAtContainer.getName() : null;
         return "ProcessStep{" +
                 "id='" + id + '\'' +
                 ", name='" + name + '\'' +
@@ -158,6 +166,7 @@ public class ProcessStep extends Element {
                 ", startDate=" + startDateformat +
                 ", finishedAt=" + finishedAtformat +
                 ", scheduledAtVM=" + vmName +
+                ", scheduledAtContainer=" + dockerName +
                 ", lastElement=" + isLastElement() +
                 '}';
     }
