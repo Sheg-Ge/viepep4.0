@@ -5,6 +5,8 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 import javax.xml.bind.annotation.XmlRootElement;
 
+import at.ac.tuwien.infosys.viepep.database.entities.ServiceType;
+
 /**
  * @author Gerta Sheganaku
  */
@@ -18,6 +20,7 @@ public class DockerImage {
 
     public DockerImage(String serviceName, String repoName, String imageName, Integer externPort, Integer internPort) {
         this.serviceName = serviceName;
+        this.serviceType = ServiceType.fromString(serviceName);
         this.repoName = repoName;
         this.imageName = imageName;
         this.internPort = internPort;
@@ -26,7 +29,7 @@ public class DockerImage {
 
     @Id
     private String serviceName;
-
+    private ServiceType serviceType;
     private String imageName;
     private String repoName;
     private Integer internPort;
@@ -39,6 +42,10 @@ public class DockerImage {
 
     public String getRepoName() {
         return repoName;
+    }
+    
+    public ServiceType getServiceType() {
+    	return this.serviceType;
     }
 
     public String getFullName() {
@@ -77,5 +84,30 @@ public class DockerImage {
         this.repoName = repoName;
     }
 
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result
+				+ ((imageName == null) ? 0 : imageName.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		DockerImage other = (DockerImage) obj;
+		if (imageName == null) {
+			if (other.imageName != null)
+				return false;
+		} else if (!imageName.equals(other.imageName))
+			return false;
+		return true;
+	}
 
 }

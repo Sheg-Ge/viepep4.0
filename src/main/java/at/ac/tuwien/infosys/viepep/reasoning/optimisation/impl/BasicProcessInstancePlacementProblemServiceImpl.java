@@ -1,6 +1,7 @@
 package at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl;
 
 import at.ac.tuwien.infosys.viepep.database.entities.*;
+import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheVirtualMachineService;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowService;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
@@ -10,15 +11,17 @@ import ilog.concert.IloNumVar;
 import ilog.cplex.IloCplex;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.javailp.*;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 
 /**
- * Created by Philipp Hoenisch on 4/15/14.
+ * Created by Philipp Hoenisch on 4/15/14. edited by Gerta Sheganaku
  */
 @Slf4j
 //@Component
@@ -31,32 +34,32 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     @Autowired
     private CacheWorkflowService cacheWorkflowService;
 
-    @Value("${optimization.use.internVms.first}")
-    private boolean useInternVmsFirst = true;           // has to be true that the internal storage is filled first
+//    @Value("${optimization.use.internVms.first}")
+//    private boolean useInternVmsFirst = false;           //IGNORE // has to be true that the internal storage is filled first
 
 
-    private static final long SERVICE_DEPLOY_TIME = 40000L;
     public static final Object SYNC_OBJECT = "Sync_Lock";
 
-    private static final double EXTERNAL_CLOUD_FACTOR = 1000;
-    private static long VM_STARTUP_TIME = 40000L;
+    private static final double EXTERNAL_CLOUD_FACTOR = 1; //not considered
+    
     private static final double OMEGA_F_R_VALUE = 0.001;
     private static final double OMEGA_F_C_VALUE = 0.001;
 
     private Date tau_t;
-    private static final long TIMESLOT_DURATION = 30 * 1000 * 1; //timeslot duration is minimum 1 minute
-    public static final long LEASING_DURATION = 60 * 1000 * 5; //timeslot duration is minimum 5 minutes
+    
+//    private static final long TIMESLOT_DURATION = 20 * 1000 * 1; //timeslot duration is minimum 1 minute
+//    public static final long LEASING_DURATION = 60 * 1000 * 5; //timeslot duration is minimum 5 minutes
 
-    private int V = 0;
-    private int K = 0;
-    private int internalTypes = 3;
+//    private int V = 0;
+//    private int K = 0;
+//    private int internalTypes = 0;
     private long M;
 
-    private Map<Integer, Integer> currentVMUsage = new HashMap<>();
+    private static final long SERVICE_DEPLOY_TIME = 40000L;
+    private static long VM_STARTUP_TIME = 40000L;
+    
+//    private Map<Integer, Integer> currentVMUsage = new HashMap<>();
 
-    private double usageOfInternalCloud = 0.0;
-
-    private Map<VMType, List<VirtualMachine>> vmMap;
     private List<Element> allRunningSteps;
     private List<WorkflowElement> nextWorkflowInstances;
     private Map<String, List<Element>> nextSteps;
@@ -64,61 +67,51 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     private Problem problem;
 
     public void initializeParameters() {
-        V = 0;
-        K = 0;
-        vmMap = new HashMap<>();
-        /**
-         * initialize vm map
-         */
-        List<VirtualMachine> vMs = cacheVirtualMachineService.getAllVMs();
-        updateVMap(vMs);
-
-
-        //DS: we need to know which types of Services/ProcessSteps exist
-        List<String> processStepTypes = new ArrayList<String>();
-        for (Element workflowInstance : getNextWorkflowInstances()) {
-            addProcessStepTypesFromElement(workflowInstance, processStepTypes);
-        }
-
-
+//        V = cacheVirtualMachineService.getVMTypes().size();
+//        for (VMType vmType : cacheVirtualMachineService.getVMTypes()) { //set K, max 1 iteration
+//            K = cacheVirtualMachineService.getVMs(vmType).size();
+            VM_STARTUP_TIME = cacheVirtualMachineService.getAllVMs().get(0).getStartupTime();
+//            break;
+//        }
     }
 
     public Result optimize(Date tau_t) {
 
         //cleanups
-        synchronized (SYNC_OBJECT) {
+    	synchronized (SYNC_OBJECT) {
             placementHelper.setFinishedWorkflows();
 
-            updateVMap(cacheVirtualMachineService.getAllVMs());
-            updateUsageMap();
-            allRunningSteps = null;
-            nextSteps = new HashMap<>();
-            runningSteps = new HashMap<>();
-
+//            updateUsageMap();
             nextWorkflowInstances = null;
-            nextWorkflowInstances = getNextWorkflowInstances();
+            nextSteps = new HashMap<>();
+            allRunningSteps = null;
+            runningSteps = new HashMap<>();
+            
+            getNextWorkflowInstances();
+            getAllNextStepsAsList();
             getAllRunningSteps();
             getNextAndRunningSteps();
-            for (Element nextWorkflowInstance : nextWorkflowInstances) {
-                getNextSteps(nextWorkflowInstance);
-            }
         }
 
-        System.out.println("optimize date tau " + tau_t);
         this.tau_t = tau_t;
 //        M = 100000 / 1000;
         M = 10000000;
         SolverFactory factory;
         if (useCPLEX) {
             factory = new SolverFactoryCPLEX();//use cplex
+            log.info("#### ---- Using CPLEX Solver");
         }
         else {
             factory = new SolverFactoryLpSolve();//use lp solve
+            log.info("#### ---- Using LP Solver");
+
         }
 //        factory.setParameter(Solver.POSTSOLVE, 2);
         factory.setParameter(Solver.VERBOSE, 0);
         factory.setParameter(Solver.TIMEOUT, 600); // set timeout to 600 seconds
 
+        log.info(printCollections());
+        
         problem = new Problem();
         addObjective_1(problem);
         addConstraint_2(problem);
@@ -128,9 +121,12 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         addConstraint_13(problem);
         addConstraint_14_16(problem);
         addConstraint_15_17(problem);
-        addConstraint_18(problem);
-        addConstraint_19(problem);
-        addConstraint_20(problem);
+        
+//        addConstraint_18(problem);
+//        addConstraint_19(problem);
+//        addConstraint_20(problem);
+        addConstraint_20_to_25(problem);
+        
         addConstraint_21(problem);
         addConstraint_22(problem);
         addConstraint_23(problem);
@@ -140,16 +136,18 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         addConstraint_27(problem);
         addConstraint_28(problem);
         addConstraint_29(problem);
-        addConstraint_30(problem);
-        addConstraint_31(problem);
+        
+//        addConstraint_30(problem);
+//        addConstraint_31(problem);
 
         Solver solver = new ViePEPSolverCPLEX(); // factory.get();
+        //Solver solver = factory.get();
         if (useCPLEX) {
             ((SolverCPLEX) solver).addHook(new SolverCPLEX.Hook() {
                 @Override
                 public void call(IloCplex cplex, Map<Object, IloNumVar> varToNum) {
                     try {
-                        cplex.setParam(IloCplex.DoubleParam.TiLim, (TIMESLOT_DURATION / 1000) - 10);  //60
+                        cplex.setParam(IloCplex.DoubleParam.TiLim, 60);  //(TIMESLOT_DURATION / 1000) - 10
                     } catch (IloException e) {
                         e.printStackTrace();
                     }
@@ -158,8 +156,6 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         }
 
         Result solve = solver.solve(problem);
-
-
 
         int i = 0;
         StringBuilder vars = new StringBuilder();
@@ -197,15 +193,83 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         return solve;
 
     }
+    
+    private void addConstraint_20_to_25(Problem problem) {
+        for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+        	String g_v_k = placementHelper.getGVariable(vm);
+        	String y_v_k = placementHelper.getDecissionVariableY(vm);
+        	int b_v_k = placementHelper.getBeta(vm);
+
+        	//Constraint 20
+            Linear linear = new Linear();
+            linear.add(1, g_v_k);
+            linear.add(-1, y_v_k);
+            problem.add(linear, Operator.LE, b_v_k);
+            
+            //Constraint 21
+            Linear linear1 = new Linear();
+            linear1.add(1, y_v_k);
+            linear1.add(-1 * Integer.MAX_VALUE, g_v_k);
+            problem.add(linear1, Operator.LE, -1*b_v_k);
+            
+        }
+    }
+
+//  private void addConstraint_20_to_25(Problem problem) {
+//  for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+//  	String g_v_k = placementHelper.getGVariable(vm);
+//  	String y_v_k = placementHelper.getDecissionVariableY(vm);
+//  	String g_times_y = placementHelper.getGYVariable(vm);
+//  	int b_v_k = placementHelper.getBeta(vm);
+//  	int y_upperBound = Integer.MAX_VALUE;
+//
+//  	  //Constraint 20
+//      Linear linear = new Linear();
+//      linear.add(1, g_v_k);
+//      linear.add(-1, y_v_k);
+//      problem.add(linear, Operator.LE, b_v_k);
+//      
+//      //Constraint 21
+//      Linear linear1 = new Linear();
+//      linear1.add(1, y_v_k);
+//      linear1.add(-1 * b_v_k, g_v_k);
+//      linear1.add(-1, g_times_y);
+//      problem.add(linear1, Operator.LE, -1*b_v_k);
+//      
+//      //Constraint 22
+//      Linear linear2 = new Linear();
+//      linear2.add(1, g_times_y);
+//      linear2.add(-1 * y_upperBound, g_v_k);
+//      problem.add(linear2, Operator.LE, 0);
+//      
+//      //Constraint 23
+//      Linear linear3 = new Linear();
+//      linear3.add(1, g_times_y);
+//      linear3.add(-1, y_v_k);
+//      problem.add(linear3, Operator.LE, 0);
+//      
+//      //Constraint 24
+//      Linear linear4 = new Linear();
+//      linear4.add(1, g_times_y);
+//      linear4.add(-1, y_v_k);
+//      linear4.add(-1 * y_upperBound, g_v_k);
+//      problem.add(linear4, Operator.GE, -1 * y_upperBound);
+//      
+//      //Constraint 25
+//      Linear linear5 = new Linear();
+//      linear5.add(1, g_times_y);
+//      problem.add(linear5, Operator.GE, 0);
+//  }
+//}
 
     private String printCollections() {
-
+        
         StringBuilder builder = new StringBuilder();
 
         builder.append("------- collections ---------\n");
 
         builder.append("\n--------- vmMap ---------");
-        for (Map.Entry<VMType, List<VirtualMachine>> vmMapEntry : vmMap.entrySet()) {
+        for (Map.Entry<VMType, List<VirtualMachine>> vmMapEntry : cacheVirtualMachineService.getVMMap().entrySet()) {
 
             builder.append("\n").append(vmMapEntry.getKey()).append(":");
             for (VirtualMachine vm : vmMapEntry.getValue()) {
@@ -255,58 +319,60 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
      */
     private void addObjective_1(Problem problem) {
         final Linear linear = new Linear();
-        for (int v = 0; v < V; v++) {
-            String gamma = "gamma_" + v;
-            linear.add(getCostForVM(v), gamma);
+        
+        //Term 1:
+        for (VMType vmType : cacheVirtualMachineService.getVMTypes()) {
+            String gamma = placementHelper.getGammaVariable(vmType);
+            linear.add(vmType.getCosts(), gamma);
         }
 
-        String transfer = "transfercosts";
-        linear.add(1, transfer);
+//        String transfer = "transfercosts";
+//        linear.add(1, transfer);
 
 
         //DS: for penalty costs
-        for (Element workflowInstance : getNextWorkflowInstances()) {
-            String workflowInstanceId = workflowInstance.getName();
-            String executionTimeViolation = "e_w_" + workflowInstanceId + "^p";
-            linear.add(getPenaltyCostPerQoSViolationForProcessInstance(workflowInstanceId), executionTimeViolation);
+        for (WorkflowElement workflowInstance : getNextWorkflowInstances()) {
+        	//Term 2:
+            String executionTimeViolation = placementHelper.getExecutionTimeViolationVariable(workflowInstance);
+            linear.add(placementHelper.getPenaltyCostPerQoSViolationForProcessInstance(workflowInstance), executionTimeViolation);
 
-            List<Element> nextSteps = getNextSteps(workflowInstance);
-            List<String> stepIds = new ArrayList<>();
-            for (Element nextStep : nextSteps) {
-                stepIds.add(nextStep.getName());
-            }
-
-            double deadlineSmall = workflowInstance.getDeadline() / 1000;
+            //Term 4:
+            long enactmentDeadline = placementHelper.getEnactmentDeadline(workflowInstance);//getDeadline() / 1000;
+            double enactmentDeadlineSmall = enactmentDeadline / 1000;
             double tauSmall = tau_t.getTime() / 1000;
-            double diffInMinutes = (((deadlineSmall - 60 - tauSmall)));
+            double diffInMinutes = (enactmentDeadlineSmall - tauSmall); //diff in secs!? (((deadlineSmall - 60 - tauSmall)));
             Double coefficient = 1.0 / diffInMinutes;
-            if (coefficient <= 0 || Double.isInfinite(coefficient)) {
-                coefficient = 100.0;
+            if (Double.isInfinite(coefficient) || coefficient <= 0) {
+                coefficient = 100.0-diffInMinutes; 
             }
-            for (int v = 0; v < V; v++) {
-                for (int k = 0; k < K; k++) {
-                    for (String step : stepIds) {
-                        String decisionVariableX = "x_" + step + "," + v + "_" + k;
+            
+            Date enactDeadl = new Date(enactmentDeadline);
+            System.out.println("EnactmentDeadline: "+ enactDeadl + ", tau_t :" + tau_t + " of Workflow "+ workflowInstance.getName());
+    		System.out.println("******* Coefficient for Term 6 was: " + coefficient + " For diff: " + diffInMinutes + " For WorkflowDeadline: " + workflowInstance.getDeadline()+ " of Workflow "+ workflowInstance.getName());
 
-                        linear.add(-1 * coefficient, decisionVariableX);
-                    }
+    		for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+            	for (Element step : nextSteps.get(workflowInstance.getName())) {
+            		String decisionVariableX = placementHelper.getDecissionVariableX(step, vm);
+            		linear.add(-1 * coefficient, decisionVariableX);
                 }
             }
 
         }
-        for (int v = 0; v < V; v++) {
-            for (int k = 0; k < K; k++) {
-                String fValueC = "f_" + v + "_" + k + "^C";
-//                String fValueR = "f_" + v + "_" + k + "^R"; //todo add me again if ram is considered
-                linear.add(OMEGA_F_C_VALUE, fValueC);
-//                linear.add(OMEGA_F_R_VALUE, fValueR);
-                problem.setVarUpperBound(fValueC, Double.MAX_VALUE);
-//                problem.setVarUpperBound(fValueR, Double.MAX_VALUE);
-                problem.setVarLowerBound(fValueC, Double.MIN_VALUE);
-//                problem.setVarLowerBound(fValueR, Double.MIN_VALUE);
-            }
+        //Term 3        
+        for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+        	String fValueC = placementHelper.getFValueCVariable(vm);
+            String fValueR = placementHelper.getFValueRVariable(vm); //todo add me again if ram is considered
+            linear.add(OMEGA_F_C_VALUE, fValueC);
+            linear.add(OMEGA_F_R_VALUE, fValueR);
+            problem.setVarUpperBound(fValueC, Double.MAX_VALUE);
+            problem.setVarUpperBound(fValueR, Double.MAX_VALUE);
+            problem.setVarLowerBound(fValueC, Double.MIN_VALUE);
+            problem.setVarLowerBound(fValueR, Double.MIN_VALUE);
         }
-
+        
+        //maximize tau_t_1
+        linear.add(-1, "tau_t_1");
+        
         problem.setObjective(linear, OptType.MIN);
     }
 
@@ -315,22 +381,21 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
      */
     private void addConstraint_2(Problem problem) {
         final List<WorkflowElement> nextWorkflowInstances = getNextWorkflowInstances();
-        for (final Element workflowInstance : nextWorkflowInstances) {
-            String workflowInstanceId = workflowInstance.getName();
+        for (final WorkflowElement workflowInstance : nextWorkflowInstances) {
             Linear linear = new Linear();
-            String executionTimeWorkflowVariable = "e_w_" + workflowInstanceId;
-            String executionTimeViolation = "e_w_" + workflowInstanceId + "^p";
+            String executionTimeWorkflowVariable = placementHelper.getExecutionTimeVariable(workflowInstance);
+            String executionTimeViolation = placementHelper.getExecutionTimeViolationVariable(workflowInstance);
             linear.add(1, "tau_t_1");
             linear.add(1, executionTimeWorkflowVariable);
             linear.add(-1, executionTimeViolation);
 
-            List<Element> runningSteps = getRunningSteps(workflowInstance.getName());
-            long maxRemainingExecutionTime = 0;
-            for (Element runningStep : runningSteps) {
-                maxRemainingExecutionTime = Math.max(maxRemainingExecutionTime, getRemainingExecutionTimeAndDeployTimes(runningStep));
-            }
+//            List<Element> runningStepsForWorkflow = getRunningStepsForWorkflow(workflowInstance.getName());
+//            long maxRemainingExecutionTime = 0;
+//            for (Element runningStep : runningStepsForWorkflow) {
+//                maxRemainingExecutionTime = Math.max(maxRemainingExecutionTime, getRemainingExecutionTimeAndDeployTimes(runningStep));
+//            }
 
-            long rhs = workflowInstance.getDeadline() / 1000 - maxRemainingExecutionTime / 1000;
+            long rhs = workflowInstance.getDeadline() / 1000; //- maxRemainingExecutionTime / 1000;
             problem.add(linear, "<=", rhs);
 
         }
@@ -344,24 +409,21 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     private void addConstraint_3(Problem problem) {
         Linear linear = new Linear();
         linear.add(1, "tau_t_1");
-        problem.add(linear, ">=", tau_t.getTime() / 1000 + TIMESLOT_DURATION / 1000);
-        problem.setVarUpperBound("tau_t_1", Long.MAX_VALUE);
+        problem.add(linear, ">=", tau_t.getTime() / 1000 + 10); //+ TIMESLOT_DURATION / 1000);
+        problem.setVarUpperBound("tau_t_1", Integer.MAX_VALUE);
     }
 
     /**
      * @param problem to be solved
      */
     private void addConstraint_4(Problem problem) {
-        for (Element workflowInstance : getNextWorkflowInstances()) {
-            String workflowInstanceId = workflowInstance.getName();
-
-            List<Element> nextSteps = getNextSteps(workflowInstance);
+        for (WorkflowElement workflowInstance : getNextWorkflowInstances()) {
             List<String> nextStepIds = new ArrayList<>();
-            for (Element element : nextSteps) {
+            for (Element element : nextSteps.get(workflowInstance.getName())) {
                 nextStepIds.add(element.getName());
             }
 
-            String executionTimeWorkflowVariable = "e_w_" + workflowInstanceId;
+            String executionTimeWorkflowVariable = placementHelper.getExecutionTimeVariable(workflowInstance);
             Linear linear = new Linear();
             linear.add(1, executionTimeWorkflowVariable);
 
@@ -379,18 +441,19 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
      */
     private void addConstraint_12(Problem problem) {
         List<Element> steps = getNextAndRunningSteps();
-        for (int v = 0; v < V; v++) {
-            for (int k = 0; k < K; k++) {
-                Linear linear = new Linear();
-                for (Element step : steps) {
-                    String decisionVariable = "x_" + step.getName() + "," + v + "_" + k;
-                    linear.add(1, decisionVariable);
-                }
-                String decisionVariableY = "y_" + v + "_" + k;
-                linear.add(-M, decisionVariableY);
-                int beta = getBeta(v, k);
-                problem.add(linear, "<=", beta * M);
-            }
+        
+        for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+        	Linear linear = new Linear();
+        	
+            for (Element step : steps) {
+            	String decisionVariable = placementHelper.getDecissionVariableX(step, vm);
+            	linear.add(1, decisionVariable);
+           }
+            
+           String decisionVariableY = placementHelper.getDecissionVariableY(vm);
+           linear.add(-M, decisionVariableY);
+           int beta = placementHelper.getBeta(vm);
+           problem.add(linear, "<=", beta * M);
         }
     }
 
@@ -409,15 +472,14 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
                 if (!step1.getName().equals(step2.getName())) { //save some iterations, only take the different step
                     //DS: we only need this constraint if the service types are different
                     if (!((ProcessStep) step1).getServiceType().name().equals(((ProcessStep) step2).getServiceType().name())) {
-                        for (int v = 0; v < V; v++) {
-                            for (int k = 0; k < K; k++) {
-                                String decisionVariable1 = "x_" + step1.getName() + "," + v + "_" + k;
-                                String decisionVariable2 = "x_" + step2.getName() + "," + v + "_" + k;
-                                Linear linear = new Linear();
-                                linear.add(1, decisionVariable1);
-                                linear.add(1, decisionVariable2);
-                                problem.add(linear, "<=", 1);
-                            }
+                        for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+                            String decisionVariable1 = placementHelper.getDecissionVariableX(step1, vm);
+                            String decisionVariable2 = placementHelper.getDecissionVariableX(step2, vm);
+                            Linear linear = new Linear();
+                            linear.add(1, decisionVariable1);
+                            linear.add(1, decisionVariable2);
+                            problem.add(linear, "<=", 1);
+                            
                         }
                     }
                 }
@@ -434,55 +496,54 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         if (steps.isEmpty()) {//can be ignored if no steps are running
             return;
         }
-        for (int v = 0; v < V; v++) {
-            for (int k = 0; k < K; k++) {
-                Linear linear = new Linear();
-//                Linear linear2 = new Linear(); //add me if ram is considered
+        for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+        	Linear linear = new Linear();
+            Linear linear2 = new Linear(); //add me if ram is considered
 
-                for (Element step : steps) {
-                    String decisionVariableX = "x_" + step.getName() + "," + v + "_" + k;
-                    double requiredCPUPoints = getRequiredCPUPoints(((ProcessStep) step).getServiceType(), v, k);
-                    linear.add(requiredCPUPoints, decisionVariableX);
+            for (Element step : steps) {
+            	String decisionVariableX = placementHelper.getDecissionVariableX(step, vm);
+                double requiredCPUPoints = placementHelper.getRequiredCPUPoints((ProcessStep) step);
+                linear.add(requiredCPUPoints, decisionVariableX);
 
-//                    double requiredRAMPoints = getRequiredRAMPoints(((ProcessStep) step).getType(), v, k);
-//                    linear2.add(requiredRAMPoints, decisionVariableX);
-                }
-                problem.add(linear, "<=", getSuppliedCPUPoints(v, k));
-//                problem.add(linear2, "<=", getSuppliedRAMPoints(v, k));
+                double requiredRAMPoints = placementHelper.getRequiredRAMPoints((ProcessStep) step);
+                linear2.add(requiredRAMPoints, decisionVariableX);
             }
+            problem.add(linear, "<=", placementHelper.getSuppliedCPUPoints(vm));
+            problem.add(linear2, "<=",placementHelper.getSuppliedRAMPoints(vm));
         }
     }
 
     private void addConstraint_15_17(Problem problem) {
         List<Element> steps = getNextAndRunningSteps();
-        for (int v = 0; v < V; v++) {
-            for (int k = 0; k < K; k++) {
-                Linear linear = new Linear();
-//                Linear linear2 = new Linear(); //add me if ram is considered
-                for (Element step : steps) {
-                    String decisionVariableX = "x_" + step.getName() + "," + v + "_" + k;
-                    linear.add(-getRequiredCPUPoints(((ProcessStep) step).getServiceType(), v, k), decisionVariableX);
-//                    linear2.add(-getRequiredRAMPoints(((ProcessStep) step).getType(), v, k), decisionVariableX); //add me if ram is considered
-                }
-                String fValueC = "f_" + v + "_" + k + "^C";
-//                String fValueR = "f_" + v + "_" + k + "^R"; //add me if ram is considered
-
-//                if (!steps.isEmpty()) {
-                double suppliedCPUPoints = getSuppliedCPUPoints(v, k);
-//                double suppliedRAMPoints = getSuppliedRAMPoints(v, k);
-
-
-//
-
-                linear.add(-1, fValueC);
-//                linear2.add(-1, fValueR); //add me if ram is considered
-
-                linear.add(1 * suppliedCPUPoints, "g_" + v + "_" + k);
-//                linear2.add(1 * suppliedRAMPoints, "g_" + v + "_" + k); //add me if ram is considered
-
-                problem.add(linear, Operator.LE, 0);
-//                problem.add(linear2, Operator.LE, 0); //add me if ram is considered
+        for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+            Linear linear = new Linear();
+            Linear linear2 = new Linear(); //add me if ram is considered
+            for (Element step : steps) {
+            	String decisionVariableX = placementHelper.getDecissionVariableX(step, vm);
+                linear.add(-placementHelper.getRequiredCPUPoints((ProcessStep) step), decisionVariableX);
+                linear2.add(-placementHelper.getRequiredRAMPoints((ProcessStep) step), decisionVariableX); //add me if ram is considered
             }
+            String fValueC = placementHelper.getFValueCVariable(vm);
+            String fValueR = placementHelper.getFValueRVariable(vm); //add me if ram is considered
+
+            if (!steps.isEmpty()) {
+	            double suppliedCPUPoints = placementHelper.getSuppliedCPUPoints(vm);
+	            double suppliedRAMPoints = placementHelper.getSuppliedRAMPoints(vm);
+	
+	
+
+	
+	            linear.add(-1, fValueC);
+	            linear2.add(-1, fValueR); //add me if ram is considered
+	            
+	            String g_v_k = placementHelper.getGVariable(vm);
+	            linear.add(1 * suppliedCPUPoints, g_v_k);
+	            linear2.add(1 * suppliedRAMPoints, g_v_k); //add me if ram is considered
+	
+	            problem.add(linear, Operator.LE, 0);
+	            problem.add(linear2, Operator.LE, 0); //add me if ram is considered
+	            
+	        }
         }
     }
 
@@ -491,13 +552,12 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
      * @param problem to be solved
      */
     private void addConstraint_18(Problem problem) {
-        for (int v = 0; v < V; v++) {
-            for (int k = 0; k < K; k++) {
-                String g_v_k = "g_" + v + "_" + k;
-                Linear linear = new Linear();
-                linear.add(1, g_v_k);
-                problem.add(linear, Operator.GE, getBeta(v, k));
-            }
+        for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+        	String g_v_k = placementHelper.getGVariable(vm);
+            Linear linear = new Linear();
+            linear.add(1, g_v_k);
+            problem.add(linear, Operator.GE, placementHelper.getBeta(vm));
+            
         }
     }
 
@@ -505,15 +565,14 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
      * @param problem to be solved
      */
     private void addConstraint_19(Problem problem) {
-        for (int v = 0; v < V; v++) {
-            for (int k = 0; k < K; k++) {
-                String g_v_k = "g_" + v + "_" + k;
-                String y_v_k = "y_" + v + "_" + k;
-                Linear linear = new Linear();
-                linear.add(1, g_v_k);
-                linear.add(-1, y_v_k);
-                problem.add(linear, Operator.GE, 0);
-            }
+        for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+            String g_v_k = placementHelper.getGVariable(vm);
+            String y_v_k = placementHelper.getDecissionVariableY(vm);
+            Linear linear = new Linear();
+            linear.add(1, g_v_k);
+            linear.add(-1, y_v_k);
+            problem.add(linear, Operator.GE, 0);
+            
         }
     }
 
@@ -521,15 +580,14 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
      * @param problem to be solved
      */
     private void addConstraint_20(Problem problem) {
-        for (int v = 0; v < V; v++) {
-            for (int k = 0; k < K; k++) {
-                String g_v_k = "g_" + v + "_" + k;
-                String y_v_k = "y_" + v + "_" + k;
-                Linear linear = new Linear();
-                linear.add(1, g_v_k);
-                linear.add(-1, y_v_k);
-                problem.add(linear, Operator.LE, getBeta(v, k));
-            }
+        for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+            String g_v_k = placementHelper.getGVariable(vm);
+            String y_v_k = placementHelper.getDecissionVariableY(vm);
+            Linear linear = new Linear();
+            linear.add(1, g_v_k);
+            linear.add(-1, y_v_k);
+            problem.add(linear, Operator.LE, placementHelper.getBeta(vm));
+            
         }
     }
 
@@ -538,29 +596,23 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
      * @param problem to be solved
      */
     private void addConstraint_21(Problem problem) {
-        for (int v = 0; v < V; v++) {
-            for (int k = 0; k < K; k++) {
-                List<Element> steps = getNextSteps();
-                String decisionVariableY = "y_" + v + "_" + k;
-                for (Element step : steps) {
-                    String decisionVariableX = "x_" + step.getName() + "," + v + "_" + k;
-                    Linear linear = new Linear();
-                    long remainingExecutionTime = ((ProcessStep) step).getRemainingExecutionTime(tau_t);
-                    VirtualMachine vmById = getVMById(v + "_" + k);
-                    long serviceDeployTime = SERVICE_DEPLOY_TIME;
-                    if (vmById != null) {
-                        serviceDeployTime = vmById.getDeployTime();
-                    }
-                    int i = 1 - getBeta(v, k);
-                    remainingExecutionTime = remainingExecutionTime / 1000;
-                    serviceDeployTime = serviceDeployTime / 1000;
-                    String type = ((ProcessStep) step).getServiceType().name();
-                    int z1 = getZ(type, v, k);
-                    linear.add(remainingExecutionTime + serviceDeployTime * (1 - z1) + vmById.getStartupTime() / 1000 * i,
-                            decisionVariableX);
-                    linear.add(-LEASING_DURATION / 1000, decisionVariableY);
-                    problem.add(linear, "<=", getRemainingLeasingDuration(v, k) / 1000);//see constraint 13 --> d_v_k,t
-                }
+        for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+        	List<Element> steps = getAllNextStepsAsList();
+            String decisionVariableY = placementHelper.getDecissionVariableY(vm);
+            for (Element step : steps) {
+            	String decisionVariableX = placementHelper.getDecissionVariableX(step, vm);
+                Linear linear = new Linear();
+                long remainingExecutionTime = ((ProcessStep) step).getRemainingExecutionTime(tau_t);
+                long serviceDeployTime = SERVICE_DEPLOY_TIME;
+                serviceDeployTime = vm.getDeployTime();
+                int i = 1 - placementHelper.getBeta(vm);
+                remainingExecutionTime = remainingExecutionTime / 1000;
+                serviceDeployTime = serviceDeployTime / 1000;
+                String type = ((ProcessStep) step).getServiceType().name();
+                int z1 = placementHelper.getZ(type, vm);
+                linear.add(remainingExecutionTime + serviceDeployTime * (1 - z1) + vm.getStartupTime() / 1000 * i, decisionVariableX);
+                linear.add(- (placementHelper.getLeasingDuration(vm) / 1000), decisionVariableY);
+                problem.add(linear, "<=", placementHelper.getRemainingLeasingDuration(tau_t, vm) / 1000);//see constraint 13 --> d_v_k,t
             }
         }
     }
@@ -573,12 +625,11 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 
         for (Element step : steps) {
             VirtualMachine virtualMachine = ((ProcessStep) step).getScheduledAtVM();
-            String vmName = virtualMachine.getName();
-            String decisionVariableY = "y_" + vmName;
+            String decisionVariableY = placementHelper.getDecissionVariableY(virtualMachine);
             Linear linear = new Linear();
             long remainingExecutionTimeAndDeployTimes = getRemainingExecutionTimeAndDeployTimes(step);
-            linear.add(-LEASING_DURATION / 1000, decisionVariableY);
-            long remainingLeasingDuration = getRemainingLeasingDuration(virtualMachine) / 1000;
+            linear.add(-(placementHelper.getLeasingDuration(virtualMachine) / 1000), decisionVariableY);
+            long remainingLeasingDuration = placementHelper.getRemainingLeasingDuration(tau_t, virtualMachine) / 1000;
             long remainingExecutionandDeployTime = remainingExecutionTimeAndDeployTimes / 1000;
             problem.add(linear, "<=", remainingLeasingDuration - remainingExecutionandDeployTime);//see constraint 14 --> d_v_k,t
         }
@@ -588,11 +639,12 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 
 
     private void addConstraint_23(Problem problem) {
-        for (int v = 0; v < V; v++) {
+    	for (VMType vmType : cacheVirtualMachineService.getVMTypes()) {
             Linear linear = new Linear();
-            String gamma = "gamma_" + v;
-            for (int k = 0; k < K; k++) {
-                String variableY = "y_" + v + "_" + k;
+            String gamma = placementHelper.getGammaVariable(vmType);
+            
+            for (VirtualMachine vm : cacheVirtualMachineService.getVMs(vmType)) {
+                String variableY = placementHelper.getDecissionVariableY(vm);
                 linear.add(1, variableY);
             }
             linear.add(-1, gamma);
@@ -602,62 +654,52 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     }
 
     private void addConstraint_24(Problem problem) {
-        List<Element> steps = getNextSteps();//todo check if duplicated steps
-
-        for (Element stepId : steps) {
+        for (Element step : getAllNextStepsAsList()) {
             Linear linear = new Linear();
-            for (int v = 0; v < V; v++) {
-                for (int k = 0; k < K; k++) {
-                    String variable = "x_" + stepId.getName() + "," + v + "_" + k;
-                    linear.add(1, variable);
-                }
+            for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+                String variable = placementHelper.getDecissionVariableX(step, vm);
+                linear.add(1, variable);
             }
             problem.add(linear, "<=", 1);
-            problem.add(linear, ">=", 0);
+        //    problem.add(linear, ">=", 0);
         }
     }
 
     private void addConstraint_25(Problem problem) {
-
-        List<Element> steps = getAllRunningSteps(); //todo check if duplicated steps
-        for (Element step : steps) {
-            String stepId = step.getName();
+        for (Element step : getAllRunningSteps()) {
             String vmName = ((ProcessStep) step).getScheduledAtVM().getName();
-            for (int v = 0; v < V; v++) {
-                for (int k = 0; k < K; k++) {
-                    String variable = "x_" + stepId + "," + v + "_" + k;
-                    Linear linear = new Linear();
-                    linear.add(1, variable);
-                    boolean runsAt = vmName.equals(v + "_" + k);
-                    if (runsAt) {
-                        problem.add(linear, Operator.EQ, 1);
-                    }
-                    else {
-                        problem.add(linear, Operator.EQ, 0);
-                    }
-                    problem.setVarUpperBound(variable, 1);
-                    problem.setVarLowerBound(variable, 0);
+            for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+                String variable = placementHelper.getDecissionVariableX(step, vm);
+                Linear linear = new Linear();
+                linear.add(1, variable);
+                boolean runsAt = vmName.equals(vm.getName());
+                if (runsAt) {
+                	problem.add(linear, Operator.EQ, 1);
                 }
+                else {
+                    problem.add(linear, Operator.EQ, 0);
+                }
+                problem.setVarUpperBound(variable, 1);
+                problem.setVarLowerBound(variable, 0);
+                
             }
         }
     }
 
 
     private void addConstraint_26(Problem problem) {
-        List<Element> steps = getNextSteps();
-        for (int v = 0; v < V; v++) {
-            for (int k = 0; k < K; k++) {
-                for (Element step : steps) {
-                    String variable = "x_" + step.getName() + "," + v + "_" + k;
-                    Linear linear = new Linear();
-                    linear.add(1, variable);
-                    problem.add(linear, "<=", 1);
-                    problem.add(linear, ">=", 0);
-                    problem.setVarType(variable, VarType.INT);
-                    problem.setVarLowerBound(variable, 0);
-                    problem.setVarUpperBound(variable, 1);
-                    //DS: potentially easier to use Boolean
-                }
+        for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+        	for (Element step : getAllNextStepsAsList()) {
+                String variable = placementHelper.getDecissionVariableX(step, vm);
+                Linear linear = new Linear();
+                linear.add(1, variable);
+                problem.add(linear, "<=", 1);
+                problem.add(linear, ">=", 0);
+                problem.setVarType(variable, VarType.INT);
+                problem.setVarLowerBound(variable, 0);
+                problem.setVarUpperBound(variable, 1);
+                //DS: potentially easier to use Boolean
+                
             }
         }
     }
@@ -666,19 +708,16 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
      * @param problem to add the variable
      */
     private void addConstraint_27(Problem problem) {
-        for (int v = 0; v < V; v++) {
-            for (int k = 0; k < K; k++) {
-                String variableG = "g_" + v + "_" + k;
-
-                Linear linear = new Linear();
-                linear.add(1, variableG);
-                problem.add(linear, "<=", 1);
-                problem.add(linear, ">=", 0);
-                problem.setVarType(variableG, VarType.INT);
-                problem.setVarLowerBound(variableG, 0);
-                problem.setVarUpperBound(variableG, 1);
-                //DS: potentially easier to use Boolean
-            }
+        for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+            String variableG = placementHelper.getGVariable(vm);
+            Linear linear = new Linear();
+            linear.add(1, variableG);
+            problem.add(linear, "<=", 1);
+            problem.add(linear, ">=", 0);
+            problem.setVarType(variableG, VarType.INT);
+            problem.setVarLowerBound(variableG, 0);
+            problem.setVarUpperBound(variableG, 1);
+            //DS: potentially easier to use Boolean
         }
     }
 
@@ -686,183 +725,142 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
      * @param problem to add the variable
      */
     private void addConstraint_28(Problem problem) {
-        for (int v = 0; v < V; v++) {
-            for (int k = 0; k < K; k++) {
-                String variable = "y_" + v + "_" + k;
-                Linear linear = new Linear();
-                linear.add(1, variable);
-                //DS: y may take the values {0; 1; 2; ...; Integer.MaxValue}
-                problem.add(linear, ">=", 0);
-                problem.setVarType(variable, VarType.INT);
-                problem.setVarUpperBound(variable, Integer.MAX_VALUE);
-                problem.setVarLowerBound(variable, 0);
-            }
+        for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+            String variable = placementHelper.getDecissionVariableY(vm);
+            Linear linear = new Linear();
+            linear.add(1, variable);
+            //DS: y may take the values {0; 1; 2; ...; Integer.MaxValue}
+            problem.add(linear, ">=", 0);
+            problem.setVarType(variable, VarType.INT);
+            problem.setVarUpperBound(variable, Integer.MAX_VALUE);
+            problem.setVarLowerBound(variable, 0);
         }
     }
 
 
     private void addConstraint_29(Problem problem) {
-        for (Element workflowInstance : getNextWorkflowInstances()) {
-            String workflowInstanceId = workflowInstance.getName();
+        for (WorkflowElement workflowInstance : getNextWorkflowInstances()) {
             Linear linear = new Linear();
-            String executionTimeViolation = "e_w_" + workflowInstanceId + "^p";
+            String executionTimeViolation = placementHelper.getExecutionTimeViolationVariable(workflowInstance);
             linear.add(1, executionTimeViolation);
             problem.add(linear, ">=", Double.MIN_VALUE);
             problem.add(linear, "<=", Double.MAX_VALUE);
-            problem.setVarLowerBound(executionTimeViolation, -10000);
+            problem.setVarLowerBound(executionTimeViolation, Double.MIN_VALUE); //- 10000
             problem.setVarUpperBound(executionTimeViolation, Double.MAX_VALUE);
             problem.setVarType(executionTimeViolation, VarType.REAL);
         }
     }
 
     //Goal of this constraint is to eliminate the possibility that sensitive services are deployed on a vm with the type 5, 6 or 7
-    private void addConstraint_30(Problem problem) {
-        List<Element> steps = getNextSteps();//todo check if duplicated steps
-
-        for (Element step : steps) {
-            for (int v = 0; v < V; v++) {
-                for (int k = 0; k < K; k++) {
-
-
-                    //vm types 4,5 and 6 are aws types
-
-                    //TODO currently only services 3 6 and 9 are forbidden to be executed on the public cloud
-
-
-//                    if (v >= internalTypes) {// steps can also be restricted for interna VMs
-                    ProcessStep processStep = (ProcessStep) step;
-                    List<Integer> restrictedVMs = processStep.getRestrictedVMs();
-                    if (restrictedVMs != null && restrictedVMs.contains(v)) {
-                        String variable = "x_" + step.getName() + "," + v + "_" + k;
-                        Linear linear = new Linear();
-                        linear.add(1, variable);
-                        problem.add(linear, "=", 0);
-                    }
-//                        if (("task3".equals(processStep.getType().getName())) ||
-//                                ("task6".equals(processStep.getType().getName())) ||
-//                                ("task9".equals(processStep.getType().getName()))) {
-//                            String variable = "x_" + step.getName() + "," + v + "_" + k;
-//                            Linear linear = new Linear();
-//                            linear.add(1, variable);
-//                            problem.add(linear, "=", 0);
-//                        }
-//                    }
-
-                }
-            }
-        }
-    }
+//    private void addConstraint_30(Problem problem) {
+//        List<Element> steps = getAllNextStepsAsList();//todo check if duplicated steps
+//
+//        for (Element step : steps) {
+//            for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+//                    //vm types 4,5 and 6 are aws types
+//
+//                    //TODO currently only services 3 6 and 9 are forbidden to be executed on the public cloud
+//
+//
+////                    if (v >= internalTypes) {// steps can also be restricted for interna VMs
+//                ProcessStep processStep = (ProcessStep) step;
+//                List<Integer> restrictedVMs = processStep.getRestrictedVMs();
+//                if (restrictedVMs != null && restrictedVMs.contains(vm.getVmType().getIdentifier())) {
+//                	String variable = placementHelper.getDecissionVariableX(step, vm);
+//                    Linear linear = new Linear();
+//                    linear.add(1, variable);
+//                    problem.add(linear, "=", 0);
+//                }
+////                        if (("task3".equals(processStep.getType().getName())) ||
+////                                ("task6".equals(processStep.getType().getName())) ||
+////                                ("task9".equals(processStep.getType().getName()))) {
+////                            String variable = "x_" + step.getName() + "," + v + "_" + k;
+////                            Linear linear = new Linear();
+////                            linear.add(1, variable);
+////                            problem.add(linear, "=", 0);
+////                        }
+////                    }
+//
+//                
+//            }
+//        }
+//    }
 
     // the goal of this contraint is to implement the colocation of tasks (implicit) and minimal data transfer costs
-    private void addConstraint_31(Problem problem) {
-        List<Element> steps = getNextSteps();//todo check if duplicated steps
-
-        Linear linearTransfer = new Linear();
-        linearTransfer.add(1, "transfercosts");
-        problem.add(linearTransfer, ">=", 0);
-        problem.setVarType(linearTransfer, VarType.INT);
-
-
-        Linear linear = new Linear();
-
-        for (Element stepId : steps) {
-            String location = "";
-
-            if (stepId.getLastExecutedElement() == null) {
-                location = "internal";
-            }
-            else {
-                if (stepId.getLastExecutedElement().getScheduledAtVM() != null) {
-                    location = stepId.getLastExecutedElement().getScheduledAtVM().getLocation();
-                }
-                else {
-                    location = "internal";
-                }
-            }
-
-            for (int v = 0; v < V; v++) {
-                for (int k = 0; k < K; k++) {
-                    String variable = "x_" + stepId.getName() + "," + v + "_" + k;
-
-                    if ("internal".equals(location)) {
-                        if (v < internalTypes) {
-                            linear.add(0, variable);
-                        }
-                        else {
-                            linear.add(stepId.getLastExecutedElement().getServiceType().getDataToTransfer(), variable);
-                        }
-
-                    }
-                    else {
-                        if (v >= internalTypes) {
-                            linear.add(0, variable);
-                        }
-                        else {
-                            linear.add(stepId.getLastExecutedElement().getServiceType().getDataToTransfer(), variable);
-                        }
-                    }
-                }
-            }
-        }
-
-        String transfer = "transfercosts";
-        linear.add(-1, transfer);
-        problem.add(linear, ">=", 0);
-
-    }
+//    private void addConstraint_31(Problem problem) {
+//        List<Element> steps = getNextSteps();//todo check if duplicated steps
+//
+//        Linear linearTransfer = new Linear();
+//        linearTransfer.add(1, "transfercosts");
+//        problem.add(linearTransfer, ">=", 0);
+//        problem.setVarType(linearTransfer, VarType.INT);
+//
+//
+//        Linear linear = new Linear();
+//
+//        for (Element stepId : steps) {
+//            String location = "";
+//
+//            if (stepId.getLastExecutedElement() == null) {
+//                location = "internal";
+//            }
+//            else {
+//                if (stepId.getLastExecutedElement().getScheduledAtVM() != null) {
+//                    location = stepId.getLastExecutedElement().getScheduledAtVM().getLocation();
+//                }
+//                else {
+//                    location = "internal";
+//                }
+//            }
+//
+//            for (int v = 0; v < V; v++) {
+//                for (int k = 0; k < K; k++) {
+//                    String variable = "x_" + stepId.getName() + "," + v + "_" + k;
+//
+//                    if ("internal".equals(location)) {
+//                        if (v < internalTypes) {
+//                            linear.add(0, variable);
+//                        }
+//                        else {
+//                            linear.add(stepId.getLastExecutedElement().getServiceType().getDataToTransfer(), variable);
+//                        }
+//
+//                    }
+//                    else {
+//                        if (v >= internalTypes) {
+//                            linear.add(0, variable);
+//                        }
+//                        else {
+//                            linear.add(stepId.getLastExecutedElement().getServiceType().getDataToTransfer(), variable);
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//
+//        String transfer = "transfercosts";
+//        linear.add(-1, transfer);
+//        problem.add(linear, ">=", 0);
+//
+//    }
 
 
     //##################################################################################################################
     //################################################# Helper Methods #################################################
     //##################################################################################################################
 
-    private void updateVMap(List<VirtualMachine> vMs) {
-        vmMap.clear();
-        V = 0;
-        K = 0;
-        for (VirtualMachine vm : vMs) {
-            List<VirtualMachine> virtualMachines = new ArrayList<>();
-            if (vmMap.containsKey(vm.getVmType())) {
-                virtualMachines.addAll(vmMap.get(vm.getVmType()));
-            }
-            else {
-                V++; //increase VM type
-            }
-            virtualMachines.add(vm);
-            vmMap.put(vm.getVmType(), virtualMachines);
-        }
-        for (VMType vmType : vmMap.keySet()) { //set K
-            K += vmMap.get(vmType).size();
-            VM_STARTUP_TIME = vmMap.get(vmType).get(0).getStartupTime();
-            break;
-        }
-    }
-
-    private void updateUsageMap() {
-
-        for (int v = 0; v < V; v++) {
-            Integer usedVMs = 0;
-            for (int k = 0; k < K; k++) {
-                if (getBeta(v, k) == 1) {
-                    usedVMs++;
-                }
-            }
-            currentVMUsage.put(v, usedVMs);
-        }
-    }
-
-    //@Override
-    public VirtualMachine getVMById(String vmID) {
-        Set<VMType> vmTypes = vmMap.keySet();
-        for (VMType vmType : vmTypes) {
-            for (VirtualMachine virtualMachine : vmMap.get(vmType)) {
-                if (virtualMachine.getName().equals(vmID)) {
-                    return virtualMachine;
-                }
-            }
-        }
-        return null;
-    }
+//    private void updateUsageMap() {
+//
+//        for (int v = 0; v < V; v++) {
+//            Integer usedVMs = 0;
+//            for (int k = 0; k < K; k++) {
+//                if (cacheVirtualMachineService.getBeta(v, k) == 1) {
+//                    usedVMs++;
+//                }
+//            }
+//            currentVMUsage.put(v, usedVMs);
+//        }
+//    }
 
     /**
      * @return a list of workflow instances
@@ -874,45 +872,66 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         return nextWorkflowInstances;
     }
 
-    private List<Element> getNextSteps() {
-        List<Element> list = new ArrayList<>();
-        List<WorkflowElement> nextWorkflowInstances1 = getNextWorkflowInstances();
-        for (Element workflow : nextWorkflowInstances1) {
-            list.addAll(getNextSteps(workflow));
-        }
-        return list;
-    }
+    private List<Element> getAllNextStepsAsList() {
+    	List<Element> allNextStepsAsList = new ArrayList<Element>();
 
-    private List<Element> getNextSteps(Element workflow) {
-        List<Element> list = new ArrayList<>();
-        if (!nextSteps.containsKey(workflow.getName())) {
-            List<Element> nextSteps1 = Collections.synchronizedList(new ArrayList<Element>(placementHelper.getNextSteps(workflow.getName())));
-            nextSteps.put(workflow.getName(), nextSteps1);
+        if(nextSteps.isEmpty()){
+        	for (WorkflowElement workflow : getNextWorkflowInstances()) {
+        		List<Element> nextStepsOfWorkflow = Collections.synchronizedList(new ArrayList<Element>(placementHelper.getNextSteps(workflow.getName())));
+                nextSteps.put(workflow.getName(), nextStepsOfWorkflow);
+            }
         }
-        list.addAll(nextSteps.get(workflow.getName()));
-        return list;
+        
+        for(String workflowName : nextSteps.keySet()){
+        	allNextStepsAsList.addAll(nextSteps.get(workflowName));
+        }
+        return allNextStepsAsList;
     }
 
     /**
      * @param workflowInstanceID of the running steps
      * @return a list of currently running steps
      */
-    public List<Element> getRunningSteps(String workflowInstanceID) {
+    public List<Element> getRunningStepsForWorkflow(String workflowInstanceID) {
         if (!runningSteps.containsKey(workflowInstanceID)) {
             List<Element> runningProcessSteps = Collections.synchronizedList(new ArrayList<Element>(placementHelper.getRunningProcessSteps(workflowInstanceID)));
             runningSteps.put(workflowInstanceID, runningProcessSteps);
         }
         return runningSteps.get(workflowInstanceID);
     }
+    
+    public List<Element> getAllRunningSteps() {
+        if (allRunningSteps == null) {
+            allRunningSteps = new ArrayList<>();
+            List<WorkflowElement> nextWorkflowInstances = getNextWorkflowInstances();
+            for (Element workflowInstance : nextWorkflowInstances) {
+                List<Element> runningStepsForWorkflowInstanceID = getRunningStepsForWorkflow(workflowInstance.getName());
+                allRunningSteps.addAll(runningStepsForWorkflowInstanceID);
+            }
+        }
+        return allRunningSteps;
+    }
+    
+
+    public List<Element> getNextAndRunningSteps() {
+        List<Element> steps = getAllNextStepsAsList();
+        List<Element> runningSteps = getAllRunningSteps();
+        for (Element step : runningSteps) {
+            if (!steps.contains(step)) {
+                steps.add(step);
+            }
+        }
+        return steps;
+    }
 
     /**
      * @param v needed to identify a vm type
      * @return the costs for that VM
      */
-    public double getCostForVM(int v) {
-        if (!useInternVmsFirst) {
-            return getVMType(v + 1).getCosts();
-        }
+//    public double getCostForVM(int v) {
+//        if (!useInternVmsFirst) {
+//            return getVMType(v).getCosts();
+//        }
         //only works under the assumption that there are the same vm types on the public cloud
 
         /**
@@ -929,34 +948,34 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
          *
          */
 
-        if (v < internalTypes) {
-            //is a private VM
-            return getVMType(v + 1).getCosts();
-        }
-        else {
-            if (currentVMUsage.get(v - internalTypes) < K) {
-                //there are the same instances available on the private cloud
-                return getVMType(v + 1).getCosts() * EXTERNAL_CLOUD_FACTOR;
-            }
-            else {
-
-                for (int i = 0; i < V - v; i++) {
-                    if (currentVMUsage.get(i) < K) {
-                        return getVMType(v + 1).getCosts() * EXTERNAL_CLOUD_FACTOR;
-                    }
-                }
-
-                //check if there are larger VMs on the private cloud available
-                Integer amountOfLargerVMTypes = v - internalTypes - 1;
-                for (int i = v + 1; i <= amountOfLargerVMTypes; i++) {
-                    if (currentVMUsage.get(i - internalTypes) < K) {
-                        return getVMType(v + 1).getCosts() * EXTERNAL_CLOUD_FACTOR;
-                    }
-                }
-                return getVMType(v + 1).getCosts();
-            }
-        }
-    }
+//        if (v < internalTypes) {
+//            //is a private VM
+//            return getVMType(v + 1).getCosts();
+//        }
+//        else {
+//            if (currentVMUsage.get(v - internalTypes) < K) {
+//                //there are the same instances available on the private cloud
+//                return getVMType(v + 1).getCosts() * EXTERNAL_CLOUD_FACTOR;
+//            }
+//            else {
+//
+//                for (int i = 0; i < V - v; i++) {
+//                    if (currentVMUsage.get(i) < K) {
+//                        return getVMType(v + 1).getCosts() * EXTERNAL_CLOUD_FACTOR;
+//                    }
+//                }
+//
+//                //check if there are larger VMs on the private cloud available
+//                Integer amountOfLargerVMTypes = v - internalTypes - 1;
+//                for (int i = v + 1; i <= amountOfLargerVMTypes; i++) {
+//                    if (currentVMUsage.get(i - internalTypes) < K) {
+//                        return getVMType(v + 1).getCosts() * EXTERNAL_CLOUD_FACTOR;
+//                    }
+//                }
+//                return getVMType(v + 1).getCosts();
+//            }
+//        }
+//    }
 
 
     /**
@@ -968,7 +987,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         long remainingExecutionTime = processStep.getRemainingExecutionTime(tau_t);
         if (processStep.isScheduled()) {
 //            log.info("getRemainingExecutionTimeAndDeployTimes finishWorkflow");
-            remainingExecutionTime += placementHelper.getRemainingSetupTime(processStep.getScheduledAtVM().getName(), tau_t);
+            remainingExecutionTime += placementHelper.getRemainingSetupTime(processStep.getScheduledAtVM(), tau_t);
         }
         else {
             remainingExecutionTime += SERVICE_DEPLOY_TIME + VM_STARTUP_TIME;
@@ -978,71 +997,6 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         }
         return remainingExecutionTime;
 
-    }
-
-    /**
-     * @param serviceType a service type id
-     * @param v           needed to identify a vm type
-     * @param k           needed to identify a vm type
-     * @return the amount of CPU needed for that service type on a certain vm
-     */
-    public double getRequiredCPUPoints(ServiceType serviceType, int v, int k) {
-        return serviceType.getCpuLoad();
-    }
-
-    /**
-     * @param serviceType a service type
-     * @param v           needed to identify a vm type
-     * @param k           needed to identify a vm type
-     * @return the amount of RAM needed for that service type on a certain vm
-     */
-    public double getRequiredRAMPoints(ServiceType serviceType, int v, int k) {
-        return 180.0;
-    }
-
-    /**
-     * @param v needed to identify a vm type
-     * @param k needed to identify a vm type
-     * @return the available cpu points on a certain vm
-     */
-    public double getSuppliedCPUPoints(int v, int k) {
-        return getVMType(v + 1).getCpuPoints();
-    }
-
-    /**
-     * @param v needed to identify a vm type
-     * @param k needed to identify a vm type
-     * @return the available ram points on a certain vm
-     */
-    public double getSuppliedRAMPoints(int v, int k) {
-        return getVMType(v + 1).getRamPoints();
-    }
-
-    /**
-     * @param v needed to identify a vm type
-     * @param k needed to identify a vm type
-     * @return the remaining leasing duration for a particular vm
-     */
-    public long getRemainingLeasingDuration(int v, int k) {
-        VirtualMachine vmById = getVMById(v + "_" + k);
-        return getRemainingLeasingDuration(vmById);
-    }
-
-
-    private long getRemainingLeasingDuration(VirtualMachine virtualMachine) {
-        Date startedAt = virtualMachine.getStartedAt();
-        if (startedAt == null) {
-            return 0;
-        }
-        Date toBeTerminatedAt = virtualMachine.getToBeTerminatedAt();
-        if (toBeTerminatedAt == null) {
-            toBeTerminatedAt = new Date(startedAt.getTime() + LEASING_DURATION);
-        }
-        long remainingLeasingDuration = toBeTerminatedAt.getTime() - tau_t.getTime();
-        if (remainingLeasingDuration < 0) {
-            remainingLeasingDuration = 0;
-        }
-        return remainingLeasingDuration;
     }
 
     /**
@@ -1066,11 +1020,9 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
             else {
                 long remainingExecutionTimeAndDeployTimes = getRemainingExecutionTimeAndDeployTimes(elem);
                 if (nextStepIds.contains(elem.getName())) {
-                    for (int v = 0; v < V; v++) {
-                        for (int k = 0; k < K; k++) {
-                            String decisionVariableX = "x_" + elem.getName() + "," + v + "_" + k;
-                            linearProcessStep.add(remainingExecutionTimeAndDeployTimes / 1000, decisionVariableX);
-                        }
+                    for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+                        String decisionVariableX = placementHelper.getDecissionVariableX(elem, vm);
+                        linearProcessStep.add(remainingExecutionTimeAndDeployTimes / 1000, decisionVariableX);
                     }
                 }
                 problem.add(linearProcessStep, "=", remainingExecutionTimeAndDeployTimes / 1000);
@@ -1131,84 +1083,89 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 
     }
 
-    private VMType getVMType(int identifier) {
-        try {
-            return VMType.fromIdentifier(identifier);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    public double getPenaltyCostPerQoSViolationForProcessInstance(String workflowInstanceId) {
-        return 200.0; //TODO: return sensible costs according to a certain workflowInstanceId
-    }
-
-    public int getBeta(int v, int k) {
-        VirtualMachine vmById = getVMById(v + "_" + k);
-        System.out.println("asdf asdf asdf asdf asdf dsf sdf "+vmById);
-        return vmById.isLeased() ? 1 : 0;
-    }
-
-    /**
-     * indicates if a specific service (serviceType) runs on a virtual machine (v, k)
-     *
-     * @param serviceType - service serviceType
-     * @param v           - vm
-     * @param k           - vm
-     * @return 0 if false otherwise true
-     */
-    public int getZ(String serviceType, int v, int k) {
-      /*  int[][] zArray = z.get(serviceType);
-        int i = zArray[v][k];*/
-//        vmMap.keySet();
-        for (VMType vmType : vmMap.keySet()) {
-            for (VirtualMachine virtualMachine : vmMap.get(vmType)) {
-                if (virtualMachine.isLeased() && virtualMachine.getServiceType() != null && virtualMachine.getServiceType().name().equals(serviceType)) {
-                    return 1;
-                }
-            }
-        }
-        return 0;
-    }
-
-//    @Override
     public Collection<Object> getVariables() {
         return this.problem.getVariables();
     }
+    
+	public String getAllObjectives(Result optimize) {
+		System.out.println("\n Term 1 \n");
+		double sum1 = 0;
 
-    public List<Element> getAllRunningSteps() {
-        if (allRunningSteps == null) {
-            allRunningSteps = new ArrayList<>();
-            List<WorkflowElement> nextWorkflowInstances = getNextWorkflowInstances();
-            for (Element workflowInstance : nextWorkflowInstances) {
-                List<Element> runningStepsForWorkflowInstanceID = getRunningSteps(workflowInstance.getName());
-                allRunningSteps.addAll(runningStepsForWorkflowInstanceID);
-            }
-        }
-        return allRunningSteps;
-    }
+		for (VMType vmType : cacheVirtualMachineService.getVMTypes()) {
+			String gamma = placementHelper.getGammaVariable(vmType);
+			double c = optimize.get(gamma).doubleValue();
+			sum1 += vmType.getCosts() * c;
+		}
 
-    public List<Element> getNextAndRunningSteps() {
-        List<Element> steps = getNextSteps();
-        List<Element> runningSteps = getAllRunningSteps();
-        for (Element step : runningSteps) {
-            if (!steps.contains(step)) {
-                steps.add(step);
-            }
-        }
-        return steps;
-    }
+		System.out.println("Value: " + sum1);
 
-    public void addProcessStepTypesFromElement(Element elem, List<String> processStepTypes) {
-        if (elem instanceof ProcessStep) {
-            String typeOfP = ((ProcessStep) elem).getServiceType().name();
-            if (!processStepTypes.contains(typeOfP)) {
-                processStepTypes.add(typeOfP);
-            }
-        }
-        else {
-            for (Element subElement : elem.getElements())
-                addProcessStepTypesFromElement(subElement, processStepTypes);
-        }
-    }
+		System.out.println("\n Term 2 \n");
+		double sum2 = 0;
+		double sum4 = 0;
+		for (WorkflowElement workflowInstance : getNextWorkflowInstances()) {
+			// Term2
+			String executionTimeViolation = placementHelper
+					.getExecutionTimeViolationVariable(workflowInstance);
+			double cp = optimize.get(executionTimeViolation).doubleValue();
+			sum2 += placementHelper
+					.getPenaltyCostPerQoSViolationForProcessInstance(workflowInstance)
+					* cp;
+
+			// Term 4
+			long enactmentDeadline = placementHelper
+					.getEnactmentDeadline(workflowInstance);// getDeadline() /
+															// 1000;
+			double enactmentDeadlineSmall = enactmentDeadline / 1000;
+			double tauSmall = tau_t.getTime() / 1000;
+			double diffInMinutes = (enactmentDeadlineSmall - tauSmall); // diff
+																		// in
+																		// secs!?
+																		// (((deadlineSmall
+																		// - 60
+																		// -
+																		// tauSmall)));
+			Double coefficient = 1.0 / diffInMinutes;
+			if (Double.isInfinite(coefficient) || coefficient <= 0) {
+				coefficient = 100.0 - diffInMinutes;
+			}
+
+    		for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+				for (Element step : nextSteps.get(workflowInstance.getName())) {
+					String decisionVariableX = placementHelper
+							.getDecissionVariableX(step, vm);
+					int x = optimize.get(decisionVariableX).intValue();
+					sum4 += -1 * coefficient * x;
+				}
+			}
+		}
+
+		System.out.println("Value: " + sum2);
+
+
+		System.out.println("\n Term 3 \n");
+		double sum3 = 0;
+
+		// Term 3
+		for (VirtualMachine vm : cacheVirtualMachineService.getAllVMs()) {
+			String fValueC = placementHelper.getFValueCVariable(vm);
+			double fc = optimize.get(fValueC).intValue();
+			String fValueR = placementHelper.getFValueRVariable(vm); // todo add
+																		// me
+																		// again
+																		// if
+																		// ram
+																		// is
+																		// considered
+			double fr = optimize.get(fValueR).doubleValue();
+			sum3 += OMEGA_F_C_VALUE * fc;
+			sum3 += OMEGA_F_R_VALUE * fr;
+		}
+
+		System.out.println("Value: " + sum3);
+
+		System.out.println("\n Term 4 \n");
+		System.out.println("Value: " + sum4);
+		
+		return "\n Sum : "+ (sum1+sum2+sum3+sum4);
+	}
 }

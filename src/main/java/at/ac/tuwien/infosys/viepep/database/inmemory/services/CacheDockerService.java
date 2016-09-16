@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import at.ac.tuwien.infosys.viepep.database.entities.ProcessStep;
 import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
 import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerConfiguration;
 import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
@@ -35,25 +36,31 @@ public class CacheDockerService {
     
     public void initializeDockerContainers() {
         for (int st = 1; st <= SERVICE_TYPES; st++) {
-            DockerImage dockerImage = parseByServiceTypeId("service" + st);
-
+            DockerImage dockerImage = parseByServiceTypeId("service" + st);            
+            
             for(int c=1; c<=CONTAINERS_PER_IMAGE; c++) {
             	DockerConfiguration configuration = null;
             	switch (c) {
-                case 1:
-                    configuration = DockerConfiguration.SINGLE_CORE;
+            	case 1:
+                    configuration = DockerConfiguration.MICRO_CORE;
                     break;
                 case 2:
-                    configuration = DockerConfiguration.DUAL_CORE;
+                    configuration = DockerConfiguration.SINGLE_CORE;
                     break;
                 case 3:
-                    configuration = DockerConfiguration.QUAD_CORE;
+                    configuration = DockerConfiguration.DUAL_CORE;
                     break;
                 case 4:
-                    configuration = DockerConfiguration.HEXA_CORE;
+                    configuration = DockerConfiguration.QUAD_CORE;
                     break;
+//                case 5:
+//                    configuration = DockerConfiguration.HEXA_CORE;
+//                    break;
             	}
-				inMemoryCache.addDockerContainer(new DockerContainer(dockerImage, configuration));
+            	
+            	if(dockerImage.getServiceType().getCpuLoad() <= configuration.getCPUPoints() && dockerImage.getServiceType().getMemory() <= configuration.getRAM()){
+    				inMemoryCache.addDockerContainer(new DockerContainer(dockerImage, configuration));
+                }
             }
         }
     }
@@ -62,9 +69,23 @@ public class CacheDockerService {
         return inMemoryCache.getDockerMap().keySet();
     }
     
+    public DockerImage getDockerImage(ProcessStep step) {
+    	for(DockerImage image : getDockerImages()) {
+    		if(image.getServiceName().equals(step.getServiceType().getName())) {
+    			return image;
+    		}
+    	}
+    	return null;
+    }
+    
     public List<DockerContainer> getDockerContainers(DockerImage dockerImage) {
         return inMemoryCache.getDockerMap().get(dockerImage);
     }
+    
+    public List<DockerContainer> getDockerContainers(ProcessStep step) {
+    	System.out.println("docker image for step: " + step + " - " + getDockerImage(step).getFullName());
+		return getDockerContainers(getDockerImage(step));
+	}
     
     public List<DockerContainer> getAllDockerContainers() {
     	List<DockerContainer> allContainers = new ArrayList<DockerContainer>();
@@ -81,7 +102,7 @@ public class CacheDockerService {
 
     private DockerImage parseByImageName(String imageFullName) {
     	for(int st=1; st<=SERVICE_TYPES; st++) {
-    		if (imageFullName.contains("service"+st)) {
+    		if (imageFullName.equals("service"+st)) {
                 return new DockerImage("service"+st, repoName, imageNamePrefix+st, (8080+st), 8080);
             }
     	}
@@ -90,11 +111,10 @@ public class CacheDockerService {
 
     public DockerImage parseByServiceTypeId(String serviceType) {
     	for(int st=1; st<=SERVICE_TYPES; st++) {
-    		if(serviceType.contains("service"+st)) {
+    		if(serviceType.equals("service"+st)) {
     			return parseByImageName("service"+st);
     		}
     	}
         return parseByImageName("service1");
     }
-
 }

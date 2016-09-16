@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -37,6 +39,7 @@ public class WorkflowDaoService {
 	@Value("${use.docker}")
 	private boolean useDocker;
 
+    @Transactional(propagation=Propagation.REQUIRES_NEW)
 	public WorkflowElement finishWorkflow(WorkflowElement workflow) {
 		log.info("-- Update workflowElement: " + workflow.toString());
 
@@ -49,19 +52,19 @@ public class WorkflowDaoService {
 				element.setFinishedAt(workflow.getFinishedAt()); // TODO can be deleted?
 			}
 			if (element instanceof ProcessStep) {
-				if (!useDocker) {
-					VirtualMachine vm = ((ProcessStep) element).getScheduledAtVM();
-					if (vm != null) { // if the process step is after an XOR the process steps on one side of the XOR are not executed
-						if (vm.getId() != null) {
-							vm = virtualMachineDaoService.getVm(vm);
-							((ProcessStep) element).setScheduledAtVM(vm);
-							virtualMachineDaoService.update(vm);
-						} else {
-							vm = virtualMachineDaoService.update(vm);
-							((ProcessStep) element).setScheduledAtVM(vm);
-						}
+				VirtualMachine vm = ((ProcessStep) element).getScheduledAtVM();
+				if (vm != null) { // if the process step is after an XOR the process steps on one side of the XOR are not executed
+					if (vm.getId() != null) {
+						vm = virtualMachineDaoService.getVm(vm);
+						((ProcessStep) element).setScheduledAtVM(vm);
+						virtualMachineDaoService.update(vm);
+					} else {
+						vm = virtualMachineDaoService.update(vm);
+						((ProcessStep) element).setScheduledAtVM(vm);
 					}
-				} else {
+				}
+				
+				if (useDocker) {
 					DockerContainer dockerContainer = ((ProcessStep) element).getScheduledAtContainer();
 					if (dockerContainer != null) { // if the process step is after an XOR the process steps on one side of the XOR are not executed
 						if (dockerContainer.getId() != null) {
@@ -73,6 +76,7 @@ public class WorkflowDaoService {
 							((ProcessStep) element).setScheduledAtContainer(dockerContainer);
 						}
 					}
+					
 				}
 			}
 

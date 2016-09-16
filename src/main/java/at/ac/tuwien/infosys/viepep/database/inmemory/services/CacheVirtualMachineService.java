@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,15 +28,15 @@ public class CacheVirtualMachineService {
     private InMemoryCacheImpl inMemoryCache;
 
     private int V = 3; //Available types of VM's
-    private int K = 4;
+    private int K = 3;
 
     public void initializeVMs() {
     	try {
-    		for (int v = 0; v < V; v++) {
-    			VMType vmType = VMType.fromIdentifier(v+1);
+    		for (int v = 1; v <= V; v++) {
+    			VMType vmType = VMType.fromIdentifier(v);
 
-    			for(int k=0; k<K; k++) {            	
-    				inMemoryCache.addVirtualMachine(new VirtualMachine(v+"_"+k, vmType));
+    			for(int k = 1; k <= K; k++) {            	
+    				inMemoryCache.addVirtualMachine(new VirtualMachine(v + "_" + k, vmType));
     			}
     		}
     	}catch(Exception e) {
@@ -61,4 +62,14 @@ public class CacheVirtualMachineService {
     public Map<VMType, List<VirtualMachine>> getVMMap() {
     	return inMemoryCache.getVMMap();
     }
+    
+    public VirtualMachine getVMById(int v, int k) {
+        for (VirtualMachine virtualMachine : getAllVMs()) {
+        	if (virtualMachine.getName().equals(v + "_" + k)) {
+        		return virtualMachine;
+            }
+        }
+        return null;
+    }
+
 }

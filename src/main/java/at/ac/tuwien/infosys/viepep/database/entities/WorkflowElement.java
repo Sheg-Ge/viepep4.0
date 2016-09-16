@@ -23,11 +23,13 @@ import java.util.List;
 public class WorkflowElement extends Element {
 	
     private Date arrivedAt;
+    private double penalty = 200;
 
-    public WorkflowElement(String name, long date) {
+    public WorkflowElement(String name, long date, double penalty) {
         this.name = name;
         this.elements = new ArrayList<>();
         this.deadline = date;
+        this.penalty=penalty;
     }
 
     public WorkflowElement() {
@@ -38,10 +40,17 @@ public class WorkflowElement extends Element {
 //        return elements.get(0).calculateQoS();
 //    }
     
-    public long calculateQoS() {
+    @Override
+    public int getNumberOfExecutions() {
+    	return elements.get(elements.size()-1).getNumberOfExecutions();
+    }
+    
+    public long calculateQoS() { //calculateQoS() {
         long executionTime = 0;
         for (Element element : elements) {
-            executionTime += element.calculateQoS();
+        	if(element.getFinishedAt() == null){
+                executionTime += element.calculateQoS();
+        	}
         }
         return executionTime;
     }
@@ -78,5 +87,9 @@ public class WorkflowElement extends Element {
                 ", deadline=" + deadline +
                 '}';
     }
+
+	public double getPenaltyPerViolation() {
+		return penalty;
+	}
 
 }

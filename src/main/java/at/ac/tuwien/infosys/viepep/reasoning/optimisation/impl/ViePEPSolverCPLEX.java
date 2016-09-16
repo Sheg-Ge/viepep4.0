@@ -122,6 +122,9 @@ public class ViePEPSolverCPLEX extends SolverCPLEX {
                 }
             }
 
+            System.out.println("\n##### ----- CPLEX SOLVER STATUS: "+ cplex.getStatus()+"\n");
+
+            
             cplex.end();
 
             return result;

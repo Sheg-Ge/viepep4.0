@@ -33,7 +33,7 @@ public class ElementTest {
     }
 
     private Element createSequenceWorkflow(Date tau_t, String id) {
-        Element workflow = new WorkflowElement(id, tau_t.getTime() + 1000 * 200);
+        Element workflow = new WorkflowElement(id, tau_t.getTime() + 1000 * 200, 200);
         Sequence seq = new Sequence(id + "-seq");
         ProcessStep step1 = new ProcessStep(id + ".0", true, ServiceType.Task1, workflow.getName());
         seq.addElement(step1);
@@ -57,7 +57,7 @@ public class ElementTest {
     }
 
     private Element createAndWorkflow(Date tau_t, String id, boolean first, boolean second1, boolean second2, boolean third) {
-        Element workflow = new WorkflowElement(id + "", tau_t.getTime() + 1000 * 120);
+        Element workflow = new WorkflowElement(id + "", tau_t.getTime() + 1000 * 120, 200);
         Sequence seq = new Sequence(id + "-seq");
         ProcessStep step0 = new ProcessStep(id + ".0", first, ServiceType.Task1, workflow.getName());
         step0.setFinishedAt(new Date(tau_t.getTime() + 10000L));
@@ -83,7 +83,7 @@ public class ElementTest {
     }
 
     private Element createXORWorkflow(Date tau_t, String id) {
-        Element workflow = new WorkflowElement(id + "", new Date().getTime() + 1000 * 120);
+        Element workflow = new WorkflowElement(id + "", new Date().getTime() + 1000 * 120, 200);
 
         Sequence seq = new Sequence(id + "-seq");
         ProcessStep step0 = new ProcessStep(id + ".0", true, ServiceType.Task1, workflow.getName());

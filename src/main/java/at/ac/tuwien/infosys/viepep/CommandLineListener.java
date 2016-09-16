@@ -3,7 +3,6 @@ package at.ac.tuwien.infosys.viepep;
 import at.ac.tuwien.infosys.viepep.connectors.ViePEPAwsClientService;
 import at.ac.tuwien.infosys.viepep.connectors.impl.ViePEPOpenstackClientServiceImpl;
 import at.ac.tuwien.infosys.viepep.reasoning.ReasoningActivator;
-import at.ac.tuwien.infosys.viepep.reasoning.optimisation.docker.DockerOptimizer;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +15,7 @@ import java.util.Scanner;
 import java.util.concurrent.Future;
 
 /**
- * Created by philippwaibel on 20/06/16.
+ * Created by philippwaibel on 20/06/16. edited by gerta sheganaku
  */
 @Component
 @Slf4j
@@ -93,9 +92,10 @@ public class CommandLineListener implements CommandLineRunner {
 
             if(autostart) {
                 Future<Boolean> reasoningDone = reasoningActivatorImpl.start();
-                while(!reasoningDone.isDone()) {
-                    Thread.sleep(10000);
-                }
+                reasoningDone.get();                 // waits for result
+//                while(!reasoningDone.isDone()) {
+//                    Thread.sleep(10000);
+//                }
             }
             else {
                 reasoningActivatorImpl.start();

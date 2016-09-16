@@ -40,6 +40,7 @@ public class ProcessStep extends Element {
 
     private boolean isScheduled;
     private Date scheduledStartedAt;
+    private int numberOfExecutions;
 
     @ManyToOne//(cascade = CascadeType.ALL)	//TODO: CHECK
     private VirtualMachine scheduledAtVM;
@@ -113,7 +114,7 @@ public class ProcessStep extends Element {
      * [0] Execution Time, [1] Cost, [2] Reliability, [Throughput]
      */
     public long calculateQoS() {
-        return getExecutionTime();
+    	return getRemainingExecutionTime(new Date());
     }
 
     public boolean hasBeenExecuted() {
@@ -140,16 +141,28 @@ public class ProcessStep extends Element {
         return remaining > 0 ? remaining : serviceType.makeSpan ;
     }
 
-    public void setScheduledForExecution(boolean isScheduled, Date tau_t) {
+    public void setScheduledForExecution(boolean isScheduled, Date tau_t, VirtualMachine vm) {
         this.isScheduled = isScheduled;
         this.scheduledStartedAt = tau_t;
+        this.scheduledAtVM = vm;
     }
 
+    public void setScheduledForExecution(boolean isScheduled, Date tau_t, DockerContainer container) {
+        this.isScheduled = isScheduled;
+        this.scheduledStartedAt = tau_t;
+        this.scheduledAtContainer = container;
+    }
     @Override
     public ProcessStep getLastExecutedElement() {
         return this;
     }
-
+    
+    public void setStartDate(Date date){
+    	this.startDate = date;
+    	if(date != null) {
+    		numberOfExecutions++;
+    	}
+    }
 
     @Override
     public String toString() {
@@ -183,11 +196,14 @@ public class ProcessStep extends Element {
         return objects;
     }
 
-
+    
+    
+    @Deprecated
     public void reset() {
         this.setFinishedAt(null);
         this.setStartDate(null);
         this.setScheduledAtVM(null);
+        this.setScheduledAtContainer(null);
         this.setHasBeenExecuted(false);
         this.setScheduled(false);
         this.setScheduledStartedAt(null);

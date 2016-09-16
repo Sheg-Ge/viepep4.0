@@ -30,7 +30,8 @@ public class LoopConstruct extends Element {
 
 
     private int numberOfIterationsInWorstCase = 3;
-    private int iterations = 0;
+    private int numberOfIterationsToBeExecuted = 1;
+//    private int iterations = 0;
 
     public LoopConstruct(String n) {
         name = n;
@@ -38,6 +39,10 @@ public class LoopConstruct extends Element {
     }
 
     public LoopConstruct() {
+    }
+    
+    public int getNumberOfExecutions(){
+    	return elements.get(elements.size()-1).getNumberOfExecutions();
     }
 
 //    public long calculateQoS() {
@@ -47,9 +52,11 @@ public class LoopConstruct extends Element {
     public long calculateQoS() {
         long executionTime = 0;
         for (Element element : elements) {
-            executionTime += element.calculateQoS();
+        	if(element.getFinishedAt()==null){
+        		executionTime += element.calculateQoS();
+        	}
         }
-        return (executionTime * numberOfIterationsInWorstCase);
+        return (executionTime * (numberOfIterationsInWorstCase-getNumberOfExecutions()));
     }
 
     @Override

@@ -1,7 +1,10 @@
 package at.ac.tuwien.infosys.viepep.database.inmemory.services;
 
+import at.ac.tuwien.infosys.viepep.database.entities.Element;
+import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
 import at.ac.tuwien.infosys.viepep.database.entities.WorkflowElement;
 import at.ac.tuwien.infosys.viepep.database.inmemory.database.InMemoryCacheImpl;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -36,10 +39,11 @@ public class CacheWorkflowService {
         }
     }
 
-
     public void addWorkflowInstance(WorkflowElement workflowElement) {
-        inMemoryCache.addRunningWorkflow(workflowElement);
-        inMemoryCache.addToAllWorkflows(workflowElement);
+        synchronized (inMemoryCache.getRunningWorkflows()) {
+            inMemoryCache.addRunningWorkflow(workflowElement);
+            inMemoryCache.addToAllWorkflows(workflowElement);
+        }
     }
 
 
@@ -51,24 +55,23 @@ public class CacheWorkflowService {
 
 
     public List<WorkflowElement> getAllWorkflowElements() {
-        return inMemoryCache.getAllWorkflowInstances();
-    }
-
-
-    public synchronized WorkflowElement getWorkflowById(String workflowInstanceId) {
-        List<WorkflowElement> nextWorkflows = inMemoryCache.getRunningWorkflows();
-        Iterator<WorkflowElement> iterator = nextWorkflows.iterator();
-
-        while(iterator.hasNext()) {
-            WorkflowElement nextWorkflow = iterator.next();
-            if (nextWorkflow.getName().equals(workflowInstanceId)) {
-                return nextWorkflow;
-            }
+        synchronized (inMemoryCache.getRunningWorkflows()) {
+            return inMemoryCache.getAllWorkflowInstances();
         }
-        return null;
     }
 
-
-
-
+    public WorkflowElement getWorkflowById(String workflowInstanceId) {
+        synchronized (inMemoryCache.getRunningWorkflows()) {
+	        List<WorkflowElement> nextWorkflows = inMemoryCache.getRunningWorkflows();
+	        Iterator<WorkflowElement> iterator = nextWorkflows.iterator();
+	
+	        while(iterator.hasNext()) {
+	            WorkflowElement nextWorkflow = iterator.next();
+	            if (nextWorkflow.getName().equals(workflowInstanceId)) {
+	                return nextWorkflow;
+	            }
+	        }
+	        return null;
+        }
+    }
 }

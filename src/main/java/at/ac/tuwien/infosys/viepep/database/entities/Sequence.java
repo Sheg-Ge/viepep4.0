@@ -37,9 +37,16 @@ public class Sequence extends Element {
 
         long executionTime = 0;
         for (Element element : elements) {
-            executionTime += element.calculateQoS();
+        	if(element.getFinishedAt() == null){
+        		executionTime += element.calculateQoS();
+        	}
         }
         return executionTime;
+    }
+    
+    @Override
+    public int getNumberOfExecutions() {
+    	return elements.get(elements.size()-1).getNumberOfExecutions();
     }
 
     @Override
@@ -58,9 +65,11 @@ public class Sequence extends Element {
                     lastExecutedMaxElement = current;
                 }
             } else if (current != null) {
-                if (current.getFinishedAt().after(lastExecutedMaxElement.getFinishedAt())) {
-                    lastExecutedMaxElement = current;
-                }
+            	if(current.getFinishedAt() != null) {
+            		if (current.getFinishedAt().after(lastExecutedMaxElement.getFinishedAt())) {
+            			lastExecutedMaxElement = current;
+            		}
+            	}
             }
         }
         return lastExecutedMaxElement;

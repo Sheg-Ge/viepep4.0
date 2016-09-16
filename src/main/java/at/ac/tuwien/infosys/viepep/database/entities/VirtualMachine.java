@@ -5,8 +5,10 @@ import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.*;
+
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -42,6 +44,9 @@ public class VirtualMachine implements Serializable {
 
     @Enumerated(EnumType.STRING)
     private ServiceType serviceType;
+    
+    @Enumerated(EnumType.STRING)
+    private VMType vmType;
 
     /**
      * indicates if this vm is currently leased
@@ -49,10 +54,7 @@ public class VirtualMachine implements Serializable {
     private boolean leased = false;
 
     private String ipAddress;
-
-    @Enumerated(EnumType.STRING)
-    private VMType vmType;
-
+    
     private long startupTime = 60000L;
     private final long deployTime = 30000L;
 
@@ -60,7 +62,7 @@ public class VirtualMachine implements Serializable {
     private boolean started;
     private Date toBeTerminatedAt;
 
-    @OneToMany
+    @OneToMany(mappedBy="virtualMachine")
     private List<DockerContainer> deployedContainers;
 
     public VirtualMachine(String name, Integer numberCores, ServiceType serviceType, String location) {
@@ -97,13 +99,39 @@ public class VirtualMachine implements Serializable {
 
     public VirtualMachine() {
     }
+    
+    public boolean isDockerDeployed(DockerContainer dockerContainer) {
+        if (deployedContainers == null) {
+            deployedContainers = new ArrayList<>();
+        }
+        return deployedContainers.contains(dockerContainer);
+    }
 
-    /*
+    public List<DockerContainer> getDeployedContainers() {
+        if (deployedContainers == null) {
+            deployedContainers = new ArrayList<>();
+        }
+        return deployedContainers;
+    }
+    
+    public void addDockerContainer(DockerContainer dockerContainer) {
+        if (deployedContainers == null) {
+            this.deployedContainers = new ArrayList<>();
+        }
+        if (!deployedContainers.contains(dockerContainer)) {
+            deployedContainers.add(dockerContainer);
+        }
+    }
+
+    
     @Override
     public int hashCode() {
+    	if(id == null){
+    		return 0;
+    	}
         return Math.toIntExact(id);
     }
-*/
+
 
     @Override
     public boolean equals(Object obj) {

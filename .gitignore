@@ -13,10 +13,14 @@ hs_err_pid*
 viepep2.0.properties
 viepep-repo
 libcplex1262.so
+/*.so
 viepep4.0.properties
 mysql.properties
 docker.properties
 ssh.properties
+src/main/resources/natives/
+
+*.properties.bk
 
 .classpath
 .project

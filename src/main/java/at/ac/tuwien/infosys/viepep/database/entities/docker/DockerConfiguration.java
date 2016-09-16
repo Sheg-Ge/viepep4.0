@@ -4,12 +4,12 @@ package at.ac.tuwien.infosys.viepep.database.entities.docker;
  */
 public enum DockerConfiguration {
 
-    MICRO_CORE(0.5, 50, 30),
-    SINGLE_CORE(1, 100, 30),
-   // SINGLE_CORE(1, 300, 30),
-    DUAL_CORE(2, 2 * 100, 30),
-    QUAD_CORE(4, 4 * 100, 30),
-    HEXA_CORE(8, 8 * 100, 30);
+    MICRO_CORE(0.5, 512, 30),
+    SINGLE_CORE(1, 1024, 30),
+    //SINGLE_CORE(1, 300, 30),
+    DUAL_CORE(2, 2 * 1024, 30),
+    QUAD_CORE(4, 4 * 1024, 30);
+//    HEXA_CORE(8, 8 * 1024, 30);
 
     public final String id;
     public final double cores; //amount of needed VCores
@@ -22,4 +22,12 @@ public enum DockerConfiguration {
         this.ram = ram;
         this.disc = disc;
     }
+    
+    public double getCPUPoints(){
+    	return (cores*100)*0.9;
+    }
+
+	public double getRAM() {
+		return ram;
+	}
 }

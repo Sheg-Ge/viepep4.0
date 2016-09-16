@@ -1,26 +1,36 @@
 package at.ac.tuwien.infosys.viepep.reasoning.impl;
 
+import at.ac.tuwien.infosys.viepep.connectors.impl.ViePEPDockerControllerServiceImpl;
+import at.ac.tuwien.infosys.viepep.connectors.impl.exceptions.CouldNotStopDockerException;
 import at.ac.tuwien.infosys.viepep.database.entities.Element;
 import at.ac.tuwien.infosys.viepep.database.entities.ProcessStep;
+import at.ac.tuwien.infosys.viepep.database.entities.VMType;
 import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
 import at.ac.tuwien.infosys.viepep.database.entities.WorkflowElement;
+import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
+import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheDockerService;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheVirtualMachineService;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowService;
 import at.ac.tuwien.infosys.viepep.reasoning.ProcessOptimizationResults;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
+import at.ac.tuwien.infosys.viepep.reasoning.optimisation.ProcessInstancePlacementProblemService;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl.BasicProcessInstancePlacementProblemServiceImpl;
-import at.ac.tuwien.infosys.viepep.reasoning.service.ServiceExecutionControllerBasic;
+import at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl.DockerProcessInstancePlacementProblemServiceImpl;
+import at.ac.tuwien.infosys.viepep.reasoning.service.ServiceExecutionController;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.javailp.Result;
 
+import org.bouncycastle.crypto.tls.SimulatedTlsSRPIdentityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.Future;
 
 /**
  * @author Gerta Sheganaku
@@ -33,22 +43,35 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
     @Autowired
     private PlacementHelper placementHelper;
     @Autowired
-    private ServiceExecutionControllerBasic serviceExecutionController;
+    private ServiceExecutionController serviceExecutionController;
     @Autowired
     private CacheVirtualMachineService cacheVirtualMachineService;
     @Autowired
+    private CacheDockerService cacheDockerService;
+    @Autowired
     private CacheWorkflowService cacheWorkflowService;
+    @Autowired
+    private ViePEPDockerControllerServiceImpl dockerControllerService;
+    @Autowired
+    private ProcessInstancePlacementProblemService opti;
 
     @Async
-    public void processResults(Result optimize, Date tau_t) {
+    public Future<Boolean> processResults(Result optimize, Date tau_t) {
 
         //start VMs
         List<VirtualMachine> vmsToStart = new ArrayList<>();
+        //deploy Containers
+        List<DockerContainer> containersToDeploy = new ArrayList<>();
         //set steps to be scheduled
         List<ProcessStep> scheduledForExecution = new ArrayList<>();
         List<String> y = new ArrayList<>();
+        List<String> x = new ArrayList<>();
+        List<String> a = new ArrayList<>();
+
         StringBuilder stringBuilder2 = new StringBuilder();
 
+        System.out.println(opti.getAllObjectives(optimize));
+        
         stringBuilder2.append("------------------------- VMs running ----------------------------\n");
         List<VirtualMachine> vMs = cacheVirtualMachineService.getAllVMs();
         for(VirtualMachine vm : vMs) {
@@ -56,17 +79,36 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
                 stringBuilder2.append(vm.toString()).append("\n");
             }
         }
+        
+        stringBuilder2.append("------------------------- Dockers running ----------------------------\n");
+        List<DockerContainer> containers = cacheDockerService.getAllDockerContainers();
+        for(DockerContainer container : containers) {
+            if(container.isRunning() && container.getVirtualMachine() != null) {
+                stringBuilder2.append(container.toString()).append("\n");
+            }
+        }
 
-        List<WorkflowElement> allWorkflowInstances = cacheWorkflowService.getRunningWorkflowInstances();
+        List<WorkflowElement> allRunningWorkflowInstances = cacheWorkflowService.getRunningWorkflowInstances();
         stringBuilder2.append("------------------------ Tasks running ---------------------------\n");
-        List<ProcessStep> nextSteps = placementHelper.getUnfinishedSteps();
+        List<ProcessStep> nextSteps = placementHelper.getNotStartedUnfinishedSteps();
 
-        getRunningTasks(optimize, tau_t, vmsToStart, scheduledForExecution, y, stringBuilder2, vMs, allWorkflowInstances, nextSteps);
+        getRunningTasks(optimize, tau_t, vmsToStart, containersToDeploy, scheduledForExecution, y, x, a, stringBuilder2, vMs, allRunningWorkflowInstances, nextSteps);
 
         stringBuilder2.append("-------------------------- y results -----------------------------\n");
         for (String s : y) {
             stringBuilder2.append(s).append("=").append(optimize.get(s)).append("\n");
         }
+        
+        stringBuilder2.append("-------------------------- x results -----------------------------\n");
+        for (String s : x) {
+            stringBuilder2.append(s).append("=").append(optimize.get(s)).append("\n");
+        }
+        
+        stringBuilder2.append("-------------------------- a results -----------------------------\n");
+        for (String s : a) {
+            stringBuilder2.append(s).append("=").append(optimize.get(s)).append("\n");
+        }
+        
         stringBuilder2.append("----------- VM should be used (running or has to be started): ----\n");
         for (VirtualMachine virtualMachine : vmsToStart) {
             stringBuilder2.append(virtualMachine).append("\n");
@@ -79,19 +121,39 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
             stringBuilder2.append("Task-TODO: ").append(processStep).append("\n");
         }
         stringBuilder2.append("------------------------------------------------------------------\n");
+
+        for (DockerContainer container : containersToDeploy) {
+            stringBuilder2.append("Containers To Deploy: ").append(container).append("\n");
+        }
+        stringBuilder2.append("------------------------------------------------------------------\n");
+
+        cleanupContainers(optimize);
+
+        for (DockerContainer container : cacheDockerService.getAllDockerContainers()) {
+            stringBuilder2.append("All Containers: ").append(container).append("\n");
+        }
+        stringBuilder2.append("------------------------------------------------------------------\n");
         log.info(stringBuilder2.toString().replaceAll("(\r\n|\n)", "\r\n                                                                                                     "));
 
-        serviceExecutionController.startInvocation(scheduledForExecution);
+        serviceExecutionController.startInvocation(scheduledForExecution, containersToDeploy);
 
         cleanupVMs(tau_t);
+        
+        return new AsyncResult<Boolean>(true);
     }
 
-    private void getRunningTasks(Result optimize, Date tau_t, List<VirtualMachine> vmsToStart, List<ProcessStep> scheduledForExecution, List<String> y, StringBuilder stringBuilder2, List<VirtualMachine> vMs, List<WorkflowElement> allWorkflowInstances, List<ProcessStep> nextSteps) {
+
+	
+
+
+	private void getRunningTasks(Result optimize, Date tau_t, List<VirtualMachine> vmsToStart, List<DockerContainer> containersToDeploy, List<ProcessStep> scheduledForExecution, List<String> y, List<String> c, List<String> a, StringBuilder stringBuilder2, List<VirtualMachine> vMs, List<WorkflowElement> allWorkflowInstances, List<ProcessStep> nextSteps) {
         for (Element workflow : allWorkflowInstances) {
-            List<Element> runningSteps = placementHelper.getRunningProcessSteps(workflow.getName());
-            for (Element runningStep : runningSteps) {
-                if(((ProcessStep) runningStep).getScheduledAtVM().isStarted()) {
-                    stringBuilder2.append("Task-Running: ").append(runningStep).append("\n");
+            List<ProcessStep> runningSteps = placementHelper.getRunningProcessSteps(workflow.getName());
+            for (ProcessStep runningStep : runningSteps) {
+                if(runningStep.getScheduledAtContainer() != null) {
+                	if(runningStep.getScheduledAtContainer().isRunning()) {
+                		stringBuilder2.append("Task-Running: ").append(runningStep).append("\n");
+                	}
                 }
             }
 
@@ -99,29 +161,61 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
                 if (!processStep.getWorkflowName().equals(workflow.getName())) {
                     continue;
                 }
-
-                processXYValues(optimize, tau_t, vmsToStart, scheduledForExecution, y, vMs, processStep);
+                List<DockerContainer> containers = cacheDockerService.getDockerContainers(processStep);
+                processXValues(optimize, tau_t, containersToDeploy, scheduledForExecution, c, containers, processStep);
             }
 
         }
+        
+        
+        for (DockerContainer container : containersToDeploy) {
+        	System.out.println("PROCESSING A VALUES FOR CONTAINER: "+container);
+            processAYValues(optimize, tau_t, vmsToStart, scheduledForExecution, y, a, vMs, container);
+        }
     }
 
-    /**
-     * Check if step has to be started
-     * @param optimize
-     * @param tau_t
-     * @param vmsToStart
-     * @param scheduledForExecution
-     * @param y
-     * @param vMs
-     * @param processStep
-     */
-    private void processXYValues(Result optimize, Date tau_t, List<VirtualMachine> vmsToStart, List<ProcessStep> scheduledForExecution, List<String> y, List<VirtualMachine> vMs, ProcessStep processStep) {
-        for (VirtualMachine virtualMachine : vMs) {
-            String x_v_k = "x_" + processStep.getName() + "," + virtualMachine.getName();
-            String y_v_k = "y_" + virtualMachine.getName();
+    
+    private void processXValues(Result optimize, Date tau_t, List<DockerContainer> containersToDeploy, List<ProcessStep> scheduledForExecution, List<String> c, List<DockerContainer> containers, ProcessStep processStep) {
+    	for (DockerContainer container : containers) {
+        	String x_s_c = placementHelper.getDecissionVariableX(processStep, container);
+        	
+            Number x_s_c_number = optimize.get(x_s_c);
 
-            Number x_v_k_number = optimize.get(x_v_k);
+            if (!c.contains(x_s_c)) {
+                c.add(x_s_c);
+                if(x_s_c_number != null) {
+                if (x_s_c_number.intValue() == 1) {
+                	containersToDeploy.add(container);
+                	System.out.println("X S C WAS NOT NULL for " + x_s_c + " CONTAINERS TO DEPLOY WAS UPDATED");
+
+                }
+            	System.out.println("X S C WAS NOT NULL for " + x_s_c + "Value was: " + x_s_c_number.intValue());
+
+                } else {
+                	System.out.println("X S C WAS NULL for " + x_s_c);
+                }
+            }
+
+            if (x_s_c_number == null || x_s_c_number.intValue() == 0) {
+                continue;
+            }
+
+            if (x_s_c_number.intValue() == 1 && !scheduledForExecution.contains(processStep) && processStep.getStartDate() == null) {
+                processStep.setScheduledForExecution(true, tau_t, container);
+                scheduledForExecution.add(processStep);
+                if (!containersToDeploy.contains(container)) {
+                    containersToDeploy.add(container);
+                }
+            }
+        }
+    }
+    
+    private void processAYValues(Result optimize, Date tau_t, List<VirtualMachine> vmsToStart, List<ProcessStep> scheduledForExecution, List<String> y, List<String> a, List<VirtualMachine> vMs, DockerContainer container) {
+    	for (VirtualMachine virtualMachine : vMs) {
+        	String a_c_v = placementHelper.getDecissionVariableA(container, virtualMachine);
+            String y_v_k = placementHelper.getDecissionVariableY(virtualMachine);
+
+            Number a_c_v_number = optimize.get(a_c_v);
             Number y_v_k_number = optimize.get(y_v_k);
 
             if (!y.contains(y_v_k)) {
@@ -132,27 +226,69 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
                     if (virtualMachine.getToBeTerminatedAt() != null) {
                         date = virtualMachine.getToBeTerminatedAt();
                     }
-                    virtualMachine.setToBeTerminatedAt(new Date(date.getTime() + (BasicProcessInstancePlacementProblemServiceImpl.LEASING_DURATION * y_v_k_number.intValue())));
+                    
+                    virtualMachine.setToBeTerminatedAt(new Date(date.getTime() + (placementHelper.getLeasingDuration(virtualMachine) * y_v_k_number.intValue())));
                 }
             }
 
-            if (x_v_k_number == null || x_v_k_number.intValue() == 0) {
+            if (!a.contains(a_c_v)) {
+            	a.add(a_c_v);
+            }
+            
+            if (a_c_v_number == null || a_c_v_number.intValue() == 0) {
                 continue;
             }
 
-            if (x_v_k_number.intValue() == 1 && !scheduledForExecution.contains(processStep) &&
-                    processStep.getStartDate() == null) {
-                processStep.setScheduledForExecution(true, tau_t);
-                processStep.setScheduledAtVM(virtualMachine);
-                scheduledForExecution.add(processStep);
-                virtualMachine.setServiceType(processStep.getServiceType());
-                if (!vmsToStart.contains(virtualMachine)) {
-                    vmsToStart.add(virtualMachine);
-                }
+            
+            if (a_c_v_number.intValue() == 1) {
+            	if (container.getStartedAt() == null) {
+
+                    container.setVirtualMachine(virtualMachine);
+                    if (!vmsToStart.contains(virtualMachine)) {
+                        vmsToStart.add(virtualMachine);
+                    }
+            	} else {
+            		System.out.println("NO BE HERE PLEASE!!! ");
+            	}
             }
         }
     }
 
+    private void cleanupContainers(Result optimize) {
+        List<DockerContainer> containers = cacheDockerService.getAllDockerContainers();
+        List<VirtualMachine> vms = cacheVirtualMachineService.getAllVMs();
+
+//        for(VirtualMachine vm : vms) {
+//	        for (DockerContainer container : containers) {
+//	        	String decisionVariableA = placementHelper.getDecissionVariableA(container, vm);
+//	        	int a = optimize.get(decisionVariableA).intValue();
+//	        	
+//	            if (a!=1 && (container.getVirtualMachine()!=null)) {
+//					System.out.println("CONTAINER IS CLOSED: "+ container + " it was on VM: " + container.getVirtualMachine() + " VarA " + decisionVariableA);
+//	            	System.out.println("VM    :" +vm);
+//					placementHelper.stopDockerContainer(container);
+//					
+//	            }
+//	        }
+//        }
+        
+
+        for (DockerContainer container : containers) {
+        	VirtualMachine vm = container.getVirtualMachine();
+        	if(vm != null) {
+            	String decisionVariableA = placementHelper.getDecissionVariableA(container, vm);
+            	int a = optimize.get(decisionVariableA).intValue();
+            	
+                if (a!=1) {
+    				System.out.println("CONTAINER IS CLOSED: "+ container + " it was on VM: " + container.getVirtualMachine() + " VarA " + decisionVariableA);
+                	System.out.println("VM    :" +vm);
+    				placementHelper.stopDockerContainer(container);
+    				
+                }
+        	}
+        }
+    }
+    
     private void cleanupVMs(Date tau_t_0) {
         List<VirtualMachine> vMs = cacheVirtualMachineService.getAllVMs();
         for (VirtualMachine vM : vMs) {

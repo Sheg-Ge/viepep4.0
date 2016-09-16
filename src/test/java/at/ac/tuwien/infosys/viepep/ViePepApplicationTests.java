@@ -153,7 +153,7 @@ public class ViePepApplicationTests {
 
 	private WorkflowElement createFinishedWorkflow() {
 		String name = "finishedWorkflow";
-		WorkflowElement workflow = new WorkflowElement(name, (new Date()).getTime() + 10000);
+		WorkflowElement workflow = new WorkflowElement(name, (new Date()).getTime() + 10000, 200);
 		Sequence seq = new Sequence(name + "-seq");
 		ProcessStep elem1 = new ProcessStep(name + ".1", ServiceType.Task1, workflow.getName());
 		seq.addElement(elem1);

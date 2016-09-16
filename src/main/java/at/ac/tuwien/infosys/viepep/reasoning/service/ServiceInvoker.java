@@ -2,8 +2,11 @@ package at.ac.tuwien.infosys.viepep.reasoning.service;
 
 import at.ac.tuwien.infosys.viepep.database.entities.ProcessStep;
 import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
+import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
 import at.ac.tuwien.infosys.viepep.reasoning.service.dto.InvocationResultDTO;
+
 import com.google.common.base.Stopwatch;
+
 import org.apache.http.HttpResponse;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
@@ -64,7 +67,7 @@ public class ServiceInvoker {
     }
 
     public InvocationResultDTO invoke(VirtualMachine virtualMachine, ProcessStep processSteps) {
-        String task = processSteps.getServiceType().getName().replace("task", "");
+        String task = processSteps.getServiceType().getName().replace("service", "");
         String uri = virtualMachine.getURI().concat(":8080").concat("/service/").concat(task).concat("/normal").concat("/nodata");
         try {
             return invoke(uri);
@@ -75,4 +78,20 @@ public class ServiceInvoker {
             return invocationResult;
         }
     }
+
+	public InvocationResultDTO invoke(DockerContainer container, ProcessStep processStep) {
+		VirtualMachine vm = container.getVirtualMachine();
+		int port = container.getDockerImage().getExternPort();
+				
+		String task = processStep.getServiceType().getName().replace("service", "");
+        String uri = vm.getURI().concat(":"+port).concat("/service/").concat(task).concat("/normal").concat("/nodata");
+        try {
+            return invoke(uri);
+        } catch (Exception ex) {
+            InvocationResultDTO invocationResult = new InvocationResultDTO();
+            invocationResult.setStatus(404);
+            invocationResult.setResult(ex.getMessage());
+            return invocationResult;
+        }
+	}
 }

@@ -17,7 +17,7 @@ import java.util.Date;
 @Entity
 @Getter
 @Setter
-public class ReportingAction implements Serializable {
+public class DockerReportingAction implements Serializable {
 
     /**
      * database id
@@ -27,20 +27,22 @@ public class ReportingAction implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    private String dockerContainerID;
     private String virtualMachineID;
 
     @Enumerated(EnumType.STRING)
-    private Action vmAction;
+    private Action dockerAction;
 
     private Date timestamp;
 
-    public ReportingAction() {
+    public DockerReportingAction() {
     }
 
-    public ReportingAction(Date date, String vmID, Action action) {
+    public DockerReportingAction(Date date, String dockerContainerID, String vmID, Action action) {
         this.timestamp = date;
+        this.dockerContainerID = dockerContainerID;
         this.virtualMachineID = vmID;
-        this.vmAction = action;
+        this.dockerAction = action;
     }
 
 

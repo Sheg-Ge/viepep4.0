@@ -81,6 +81,8 @@ public abstract class Element implements Serializable {
     public abstract ProcessStep getLastExecutedElement();
 
     public abstract long calculateQoS();
+    
+    public abstract int getNumberOfExecutions();
 
 
     @Override

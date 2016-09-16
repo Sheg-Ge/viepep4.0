@@ -15,6 +15,8 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -52,8 +54,7 @@ public class ReasoningImpl {
         resourcePredictionService.initializeParameters();
         run = true;
 
-        int count = 0;
-        int emptyCounter = 0;
+        Date emptyTime = null;
 
 
         while (run) {
@@ -65,18 +66,26 @@ public class ReasoningImpl {
 
                     //finishWorkflow tau t for next round
                     boolean empty = cacheWorkflowService.getRunningWorkflowInstances().isEmpty();
+                    log.info("  ***************** RunningWFL Instances (" + cacheWorkflowService.getRunningWorkflowInstances().size() + "running) WAS EMPTY? : " + empty);
+                    
+                    for(WorkflowElement workflow :cacheWorkflowService.getRunningWorkflowInstances()) {
+                    	System.out.println("\n running workflow: " + workflow);
+                    }
+                    
                     if(empty) {
-                        emptyCounter++;
+                        if(emptyTime == null) {
+                        	emptyTime = new Date();
+                        };
+                        log.info("Time first empty: " + emptyTime);
                     }
                     else {
-                        emptyCounter = 0;
+                        emptyTime = null;
                     }
-                    if ((count >= 150 && empty) || emptyCounter > 4) {
+                    if (emptyTime != null && ((new Date()).getTime() - emptyTime.getTime()) >= (60 * 1000 * 2)) {
                     	if (autoTerminate) {
                     		run = false;
                     	}
                     }
-                    count++;
                 } catch (Exception ex) {
                     log.error("An exception occurred, exit, check if tau was always divided by 1000 and or multiplied afterwards :D !!!!:\n", ex);
                     run = false;
@@ -147,14 +156,21 @@ public class ReasoningImpl {
 
         log.info("Objective: " + optimize.getObjective());
         long tau_t_1 = optimize.get("tau_t_1").longValue() * 1000;//VERY IMPORTANT,
+        System.out.println("tau_t_1 was calculted as: "+ new Date(tau_t_1) );
+        System.out.println("Execution time ");
+        
+        
+        Future<Boolean> processed = processOptimizationResults.processResults(optimize, tau_t_0);
+        processed.get();
+        
         long difference = tau_t_1 - new Date().getTime();
-        log.info("---------sleep for: " + difference / 1000 + " seconds-----------");
-        log.info("---------next iteration: " + new Date(tau_t_1) + " -----------");
-        if (difference < 0) {
+        if (difference < 0 || difference > 60*60*1000) {
             difference = 0;
         }
-        processOptimizationResults.processResults(optimize, tau_t_0);
-
+        log.info("---------sleep for: " + difference / 1000 + " seconds-----------");
+        log.info("---------next iteration: " + new Date(tau_t_1) + " -----------");
+        
+        
         return difference;
     }
 

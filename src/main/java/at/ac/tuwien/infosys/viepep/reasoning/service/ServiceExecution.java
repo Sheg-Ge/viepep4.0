@@ -4,10 +4,12 @@ import at.ac.tuwien.infosys.viepep.database.entities.Element;
 import at.ac.tuwien.infosys.viepep.database.entities.ProcessStep;
 import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
 import at.ac.tuwien.infosys.viepep.database.entities.WorkflowElement;
+import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowService;
 import at.ac.tuwien.infosys.viepep.reasoning.service.dto.InvocationResultDTO;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
@@ -23,7 +25,7 @@ import java.util.List;
 @Component
 @Scope("prototype")
 @Slf4j
-public class ServiceExecutionBasic {
+public class ServiceExecution{
 
     @Autowired
     private ServiceInvoker serviceInvoker;
@@ -48,25 +50,43 @@ public class ServiceExecutionBasic {
             InvocationResultDTO invoke = serviceInvoker.invoke(virtualMachine, processStep);
         }
 
-        Date finishedAt = new Date();
+        finaliseExecution(processStep);
+    }
+
+    @Async
+	public void startExecution(ProcessStep processStep, DockerContainer container) {
+		log.info("Task-Start: " + processStep);
+
+        if (simulate) {
+            try {
+                Thread.sleep(processStep.getExecutionTime());
+            } catch (InterruptedException e) {
+            }
+        } else {
+            InvocationResultDTO invoke = serviceInvoker.invoke(container, processStep);
+        }
+        
+        finaliseExecution(processStep);
+        	
+	}
+	
+	private void finaliseExecution(ProcessStep processStep) {
+		Date finishedAt = new Date();
         processStep.setFinishedAt(finishedAt);
 
-        log.info("Task-Done: " + processStep);
+		log.info("Task-Done: " + processStep);
 
         if (processStep.isLastElement()) {
 
-            List<Element> runningSteps = placementHelper.getRunningProcessSteps(processStep.getWorkflowName());
-            List<Element> nextSteps = placementHelper.getNextSteps(processStep.getWorkflowName());
+            List<ProcessStep> runningSteps = placementHelper.getRunningProcessSteps(processStep.getWorkflowName());
+            List<ProcessStep> nextSteps = placementHelper.getNextSteps(processStep.getWorkflowName());
             if ((nextSteps == null || nextSteps.isEmpty()) && (runningSteps == null || runningSteps.isEmpty())) {
                 WorkflowElement workflowById = cacheWorkflowService.getWorkflowById(processStep.getWorkflowName());
                 workflowById.setFinishedAt(finishedAt);
                 cacheWorkflowService.deleteRunningWorkflowInstance(workflowById);
                 log.info("Workflow done. Workflow: " + workflowById);
-
             }
-
-        }
-
-    }
+        }	
+	}
 
 }

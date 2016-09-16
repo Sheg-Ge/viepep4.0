@@ -40,11 +40,22 @@ public class ANDConstruct extends Element {
     public long calculateQoS() {
         long executionTime = 0;
         for (Element element : elements) {
-            executionTime = Math.max(element.calculateQoS(), executionTime);
+        	if(element.getFinishedAt() == null){
+        		executionTime = Math.max(element.calculateQoS(), executionTime);
+        	}
         }
         return executionTime;
     
     }
+    
+    @Override
+	public int getNumberOfExecutions() {
+    	int executed = Integer.MAX_VALUE;
+		for(Element element : elements) {
+			executed = Math.min(executed, element.getNumberOfExecutions());
+		}
+		return executed;
+	}
 
     @Override
     public ProcessStep getLastExecutedElement() {
@@ -81,5 +92,7 @@ public class ANDConstruct extends Element {
                 ", deadline=" + deadline +
                 '}';
     }
+
+	
 
 }

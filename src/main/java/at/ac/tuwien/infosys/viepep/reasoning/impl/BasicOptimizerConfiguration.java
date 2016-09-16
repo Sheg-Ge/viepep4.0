@@ -8,7 +8,6 @@ import org.springframework.context.annotation.PropertySource;
 import at.ac.tuwien.infosys.viepep.reasoning.ProcessOptimizationResults;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.ProcessInstancePlacementProblemService;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl.BasicProcessInstancePlacementProblemServiceImpl;
-import at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl.DockerProcessInstancePlacementProblemServiceImpl;
 
 /**
  * @author Gerta Sheganaku
@@ -30,4 +29,5 @@ public class BasicOptimizerConfiguration {
 		System.out.println("Profile basic!!");
 		return new BasicProcessOptimizationResults();
 	}
+	
 }

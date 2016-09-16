@@ -4,6 +4,7 @@ import javax.persistence.Entity;
 import javax.persistence.PrimaryKeyJoinColumn;
 import javax.persistence.Table;
 import javax.xml.bind.annotation.XmlRootElement;
+
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -34,10 +35,22 @@ public class XORConstruct extends Element {
     public long calculateQoS() {
         long executionTime = 0;
         for (Element element : elements) {
-            executionTime = Math.max(element.calculateQoS(), executionTime);
+   			if(element.getFinishedAt() == null){
+   				executionTime = Math.max(element.calculateQoS(), executionTime);
+   			}
         }
         return executionTime;
     }
+    
+    @Override
+   	public int getNumberOfExecutions() {
+       	int executed = 0;
+   		for(Element element : elements) {
+   	   		executed += element.getNumberOfExecutions();
+   		}
+   		return executed;
+   	}
+
 
     @Override
     public ProcessStep getLastExecutedElement() {

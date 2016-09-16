@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Created by philippwaibel on 17/05/16.
+ * Created by philippwaibel on 17/05/16. edited by Gerta Sheganaku
  */
 @RestController
 @Slf4j
@@ -84,10 +84,13 @@ public class WorkflowRestServiceImpl implements WorkflowRestService {
                 Element subelement1 = element2.getElements().get(i);
                 setAllOthersToNotExecuted(element2.getElements(), subelement1);
                 element.getParent().setNextXOR(subelement1);
-            }/* else if (element instanceof LoopConstruct) {
-                ((LoopConstruct) element).setNumberOfIterationsInWorstCase(1);
-                ((LoopConstruct) element).setIterations(1);
-            }*/ //TODO: CHECK just ignore loops? 
+            } else if (element instanceof LoopConstruct) {
+                ((LoopConstruct) element).setNumberOfIterationsInWorstCase(3);
+            	Random random = new Random();
+                int i = random.nextInt(((LoopConstruct) element).getNumberOfIterationsInWorstCase())+1;
+            	((LoopConstruct) element).setNumberOfIterationsToBeExecuted(i);
+               // ((LoopConstruct) element).setIterations(1);
+            }  //TODO: CHECK just ignore loops? 
             update(element);
         }
     }
