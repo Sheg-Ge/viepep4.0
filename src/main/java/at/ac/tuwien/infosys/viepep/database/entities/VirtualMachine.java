@@ -123,7 +123,10 @@ public class VirtualMachine implements Serializable {
         }
     }
 
-    
+    public void setToBeTerminatedAt(Date d) {
+    	this.toBeTerminatedAt = d;
+    }
+
     @Override
     public int hashCode() {
     	if(id == null){

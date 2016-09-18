@@ -51,7 +51,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 //    private static final double TAU_T_1_WEIGHT = 0.00000000001;
     private static final double OMEGA_DEPLOY_D_VALUE = 0.001; //CHECK only a weight for actual deploy value
     private static final double DEADLINE_WEIGHT = 0.001;
-        
+
     private Date tau_t;
     private static final long EPSILON = ReasoningImpl.MIN_TAU_T_DIFFERENCE_MS / 1000;
     private static final long TIMESLOT_DURATION = 60 * 1000 * 1; //timeslot duration is minimum 1 minute
@@ -170,8 +170,34 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
                 public void call(IloCplex cplex, Map<Object, IloNumVar> varToNum) {
                     try {
                         cplex.setParam(IloCplex.DoubleParam.TiLim, 60); //(TIMESLOT_DURATION / 1000) - 10);  //60
-                        cplex.setParam(IloCplex.IntParam.RepeatPresolve, 3);
-                        cplex.setParam(IloCplex.LongParam.RepairTries, 20);
+                        // cplex.setParam(IloCplex.IntParam.RepeatPresolve, 3);
+                        // cplex.setParam(IloCplex.LongParam.RepairTries, 20);
+
+                        /* set optimality gap to ensure we get an optimal solution */
+//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.EpGap) " + cplex.getParam(IloCplex.DoubleParam.EpGap));
+//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.EpAGap) " + cplex.getParam(IloCplex.DoubleParam.EpAGap));
+//                        System.out.println("cplex.getParam(IloCplex.IntParam.NodeLim) " + cplex.getParam(IloCplex.IntParam.NodeLim));
+//                        System.out.println("cplex.getParam(IloCplex.IntParam.IntSolLim) " + cplex.getParam(IloCplex.IntParam.IntSolLim));
+//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.TreLim) " + cplex.getParam(IloCplex.DoubleParam.TreLim));
+//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.TiLim) " + cplex.getParam(IloCplex.DoubleParam.TiLim));
+//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.ItLim) " + cplex.getParam(IloCplex.IntParam.ItLim));
+//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.CutUp) " + cplex.getParam(IloCplex.DoubleParam.CutUp));
+//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.CutLo) " + cplex.getParam(IloCplex.DoubleParam.CutLo));
+//                        System.out.println("cplex.getParam(IloCplex.IntParam.PopulateLim) " + cplex.getParam(IloCplex.IntParam.PopulateLim));
+//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.SolnPoolAGap) " + cplex.getParam(IloCplex.DoubleParam.SolnPoolAGap));
+//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.SolnPoolGap) " + cplex.getParam(IloCplex.DoubleParam.SolnPoolGap));
+//                        System.out.println("cplex.getParam(IloCplex.IntParam.SolnPoolCapacity) " + cplex.getParam(IloCplex.IntParam.SolnPoolCapacity));
+//                        System.out.println("cplex.getParam(IloCplex.IntParam.SolnPoolIntensity) " + cplex.getParam(IloCplex.IntParam.SolnPoolIntensity));
+                        cplex.setParam(IloCplex.DoubleParam.EpGap, 0);
+                        cplex.setParam(IloCplex.DoubleParam.EpAGap, 0);
+
+//                        cplex.setParam(IloCplex.DoubleParam.SolnPoolAGap, 0.5);
+//                        cplex.setParam(IloCplex.IntParam.PopulateLim, 1000);
+//                        cplex.setParam(IloCplex.IntParam.SolnPoolCapacity, 10);
+//                        cplex.setParam(IloCplex.IntParam.SolnPoolIntensity, 4);
+                        // cplex.setParam(IloCplex.IntParam.NodeLim, 0);
+                        // cplex.setParam(IloCplex.DoubleParam.TreLim, 0);
+                        // cplex.setParam(IloCplex.IntParam.IntSolLim, -1);
                     } catch (IloException e) {
                         e.printStackTrace();
                     }
@@ -322,9 +348,12 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
             Date enactDeadl = new Date(enactmentDeadline);
 //            System.out.println("EnactmentDeadline: "+ enactDeadl + ", tau_t :" + tau_t + " of Workflow "+ workflowInstance.getName());
 //    		System.out.println("******* Coefficient for Term 6 was: " + coefficient + " For diff: " + diffInMinutes + " For WorkflowDeadline: " + workflowInstance.getDeadline()+ " of Workflow "+ workflowInstance.getName());
-            
+
             for (ProcessStep step : nextSteps.get(workflowInstance.getName())) {
-            	System.out.println("step: " + step);
+//            	System.out.println("step: " + step);
+//            	System.out.println(cacheDockerService.getDockerImage(step));
+//            	System.out.println(cacheDockerService.getDockerImages());
+//            	System.out.println(cacheDockerService.getDockerContainers(step));
                 for(DockerContainer container : cacheDockerService.getDockerContainers(step)){
             		String decisionVariableX = placementHelper.getDecisionVariableX(step, container);
             		linear.add(-1 * coefficient, decisionVariableX);

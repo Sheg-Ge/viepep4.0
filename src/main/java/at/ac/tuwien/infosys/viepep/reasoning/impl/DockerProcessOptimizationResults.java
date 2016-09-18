@@ -1,10 +1,21 @@
 package at.ac.tuwien.infosys.viepep.reasoning.impl;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.Future;
+
+import lombok.extern.slf4j.Slf4j;
+import net.sf.javailp.Result;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.AsyncResult;
+
 import at.ac.tuwien.infosys.viepep.connectors.impl.ViePEPDockerControllerServiceImpl;
-import at.ac.tuwien.infosys.viepep.connectors.impl.exceptions.CouldNotStopDockerException;
 import at.ac.tuwien.infosys.viepep.database.entities.Element;
 import at.ac.tuwien.infosys.viepep.database.entities.ProcessStep;
-import at.ac.tuwien.infosys.viepep.database.entities.VMType;
 import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
 import at.ac.tuwien.infosys.viepep.database.entities.WorkflowElement;
 import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
@@ -13,24 +24,7 @@ import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheVirtualMachin
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowService;
 import at.ac.tuwien.infosys.viepep.reasoning.ProcessOptimizationResults;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
-import at.ac.tuwien.infosys.viepep.reasoning.optimisation.ProcessInstancePlacementProblemService;
-import at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl.BasicProcessInstancePlacementProblemServiceImpl;
-import at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl.DockerProcessInstancePlacementProblemServiceImpl;
 import at.ac.tuwien.infosys.viepep.reasoning.service.ServiceExecutionController;
-import lombok.extern.slf4j.Slf4j;
-import net.sf.javailp.Result;
-
-import org.bouncycastle.crypto.tls.SimulatedTlsSRPIdentityManager;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Scope;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.AsyncResult;
-import org.springframework.stereotype.Component;
-
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.concurrent.Future;
 
 /**
  * @author Gerta Sheganaku
@@ -53,7 +47,7 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
     @Autowired
     private ViePEPDockerControllerServiceImpl dockerControllerService;
 
-    @Async
+    //@Async
     public Future<Boolean> processResults(Result optimize, Date tau_t) {
 
         //start VMs
@@ -97,7 +91,10 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
         
         stringBuilder2.append("-------------------------- x results -----------------------------\n");
         for (String s : x) {
-            stringBuilder2.append(s).append("=").append(optimize.get(s)).append("\n");
+        	Number num = optimize.get(s);
+        	if(num != null && num.intValue() > 0) {
+                stringBuilder2.append(s).append("=").append(optimize.get(s)).append("\n");
+        	}
         }
         
         stringBuilder2.append("-------------------------- a results -----------------------------\n");
@@ -224,7 +221,7 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
                     if (virtualMachine.getToBeTerminatedAt() != null) {
                         date = virtualMachine.getToBeTerminatedAt();
                     }
-                    
+
                     virtualMachine.setToBeTerminatedAt(new Date(date.getTime() +
                     		(placementHelper.getLeasingDuration(virtualMachine) * toInt(y_v_k_number))));
                 }
@@ -238,13 +235,11 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
                 continue;
             }
 
-            
             if (toInt(a_c_v_number) == 1) {
             	container.setVirtualMachine(virtualMachine);
                 if (!vmsToStart.contains(virtualMachine)) {
                 	vmsToStart.add(virtualMachine);
                 }
-            	
             }
         }
     }

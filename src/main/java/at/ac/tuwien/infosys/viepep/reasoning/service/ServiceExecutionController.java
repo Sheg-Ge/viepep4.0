@@ -81,14 +81,18 @@ public class ServiceExecutionController{
 
         for (final VirtualMachine virtualMachine : vmContainerProcessStepMap.keySet()) {
             final Map<DockerContainer, List<ProcessStep>> containerProcessSteps = vmContainerProcessStepMap.get(virtualMachine);
-            if (!virtualMachine.isLeased()) {
-                virtualMachine.setLeased(true);
-                virtualMachine.setStartedAt(new Date());
-                leaseVMAndStartExecution.leaseVMAndStartExecution(virtualMachine, containerProcessSteps);
+            try {
+                if (!virtualMachine.isLeased()) {
+                    virtualMachine.setLeased(true);
+                    virtualMachine.setStartedAt(new Date());
+                    leaseVMAndStartExecution.leaseVMAndStartExecution(virtualMachine, containerProcessSteps);
 
-            } else {
-                leaseVMAndStartExecution.startExecutions(vmContainerProcessStepMap.get(virtualMachine), virtualMachine);
-            }
+                } else {
+                    leaseVMAndStartExecution.startExecutions(vmContainerProcessStepMap.get(virtualMachine), virtualMachine);
+                }
+			} catch (Exception e) {
+				log.error("Unable start invocation: " + e);
+			}
         }
     }
 }

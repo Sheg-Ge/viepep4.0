@@ -87,6 +87,7 @@ public abstract class NativeLibraryLoader {
                     File destination = File.createTempFile(filename, "." + suffix);
                     FileUtils.copyInputStreamToFile(in, destination);
 
+                    LOG.info("Loading library " + destination.getAbsolutePath());
                     System.load(destination.getAbsolutePath());
                     if (filename.contains("cplex")) {
                         cplex = true;

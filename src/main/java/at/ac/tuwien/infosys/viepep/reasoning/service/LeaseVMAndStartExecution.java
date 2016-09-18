@@ -1,17 +1,9 @@
 package at.ac.tuwien.infosys.viepep.reasoning.service;
 
-import at.ac.tuwien.infosys.viepep.connectors.ViePEPClientService;
-import at.ac.tuwien.infosys.viepep.connectors.ViePEPDockerControllerService;
-import at.ac.tuwien.infosys.viepep.connectors.impl.exceptions.CouldNotStartDockerException;
-import at.ac.tuwien.infosys.viepep.connectors.impl.exceptions.CouldNotStopDockerException;
-import at.ac.tuwien.infosys.viepep.database.entities.DockerReportingAction;
-import at.ac.tuwien.infosys.viepep.database.entities.ProcessStep;
-import at.ac.tuwien.infosys.viepep.database.entities.ReportingAction;
-import at.ac.tuwien.infosys.viepep.database.entities.Action;
-import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
-import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
-import at.ac.tuwien.infosys.viepep.database.services.ReportDaoService;
-import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,9 +13,17 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StopWatch;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import at.ac.tuwien.infosys.viepep.connectors.ViePEPClientService;
+import at.ac.tuwien.infosys.viepep.connectors.ViePEPDockerControllerService;
+import at.ac.tuwien.infosys.viepep.connectors.impl.exceptions.CouldNotStartDockerException;
+import at.ac.tuwien.infosys.viepep.database.entities.Action;
+import at.ac.tuwien.infosys.viepep.database.entities.DockerReportingAction;
+import at.ac.tuwien.infosys.viepep.database.entities.ProcessStep;
+import at.ac.tuwien.infosys.viepep.database.entities.ReportingAction;
+import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
+import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
+import at.ac.tuwien.infosys.viepep.database.services.ReportDaoService;
+import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
 
 /**
  * Created by philippwaibel on 18/05/16.
@@ -141,7 +141,7 @@ public class LeaseVMAndStartExecution {
                     Thread.sleep(virtualMachine.getDeployTime());
                 }
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
         } else {
             address = viePEPClientService.startNewVM(virtualMachine.getName(), virtualMachine.getVmType().flavor(), virtualMachine.getServiceType().name(), virtualMachine.getVmType().getLocation());
