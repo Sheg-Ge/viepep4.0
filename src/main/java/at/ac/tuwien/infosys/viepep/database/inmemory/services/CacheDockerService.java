@@ -83,7 +83,7 @@ public class CacheDockerService {
     }
     
     public List<DockerContainer> getDockerContainers(ProcessStep step) {
-    	System.out.println("docker image for step: " + step + " - " + getDockerImage(step).getFullName());
+//    	System.out.println("docker image for step: " + step + " - " + getDockerImage(step).getFullName());
 		return getDockerContainers(getDockerImage(step));
 	}
     

@@ -90,7 +90,7 @@ public class PlacementHelperImpl implements PlacementHelper {
             List<Element> flattenWorkflowList = getFlattenWorkflow(new ArrayList<Element>(), workflowElement);
             for(Element element : flattenWorkflowList) {
                 if(element instanceof ProcessStep && element.getFinishedAt() == null) {
-                	if(((ProcessStep) element).getStartDate() == null) {
+                	if(((ProcessStep) element).getStartDate() == null && ((ProcessStep)element).getScheduledStartedAt() == null) {
                         processSteps.add((ProcessStep) element);                		
                 	}
                 }
@@ -226,7 +226,7 @@ public class PlacementHelperImpl implements PlacementHelper {
         List<ProcessStep> steps = new ArrayList<>();
         for (Element element : elements) {
             if (element instanceof ProcessStep) {
-                if (((ProcessStep) element).getStartDate() != null && ((ProcessStep) element).getFinishedAt() == null) {
+                if ((((ProcessStep) element).getStartDate() != null || ((ProcessStep) element).getScheduledStartedAt() != null)&& ((ProcessStep) element).getFinishedAt() == null) {
                 	if (!steps.contains(element)) {
                         steps.add((ProcessStep) element);
                     }
@@ -285,18 +285,18 @@ public class PlacementHelperImpl implements PlacementHelper {
     public List<ProcessStep> getNextSteps(Element workflow) {
         List<ProcessStep> nextSteps = new ArrayList<>();
         if (workflow instanceof ProcessStep) {
-            if (!((ProcessStep) workflow).hasBeenExecuted() && ((ProcessStep) workflow).getStartDate() == null) {
+            if (!((ProcessStep) workflow).hasBeenExecuted() && ((ProcessStep) workflow).getStartDate() == null && ((ProcessStep) workflow).getScheduledStartedAt() == null) {
                 nextSteps.add((ProcessStep) workflow);
             }
             return nextSteps;
         }
         for (Element element : workflow.getElements()) {
             if (element instanceof ProcessStep) {
-                if ((!((ProcessStep) element).hasBeenExecuted()) && (((ProcessStep) element).getStartDate() == null)) {
+                if ((!((ProcessStep) element).hasBeenExecuted()) && (((ProcessStep) element).getStartDate() == null) && ((ProcessStep) element).getScheduledStartedAt() == null) {
                     nextSteps.add((ProcessStep) element);
                     return nextSteps;
                 }
-                else if ((((ProcessStep) element).getStartDate() != null) && ((ProcessStep) element).getFinishedAt() == null) {
+                else if ((((ProcessStep) element).getStartDate() != null || ((ProcessStep) element).getScheduledStartedAt() != null) && ((ProcessStep) element).getFinishedAt() == null) {
                     //Step is still running, ignore next step
                     return nextSteps;
                 }
@@ -456,7 +456,7 @@ public class PlacementHelperImpl implements PlacementHelper {
     	return vm.getVmType().getRamPoints();
     }
 
-    public String getDecissionVariableY(VirtualMachine vm) {
+    public String getDecisionVariableY(VirtualMachine vm) {
 		return "y_" + vm.getName();
 	}
 	
@@ -493,7 +493,7 @@ public class PlacementHelperImpl implements PlacementHelper {
 		return dockerContainer.getContainerConfiguration().getCPUPoints();
 	}
 	
-	public String getDecissionVariableA(DockerContainer dockerContainer, VirtualMachine vm) {
+	public String getDecisionVariableA(DockerContainer dockerContainer, VirtualMachine vm) {
 		return "a_" + dockerContainer.getName() + "," + vm.getName();
 	}
 	
@@ -517,12 +517,12 @@ public class PlacementHelperImpl implements PlacementHelper {
     	return step.getServiceType().getMemory();
     }
     
-	public String getDecissionVariableX(Element step, VirtualMachine vm) {
+	public String getDecisionVariableX(Element step, VirtualMachine vm) {
 		return "x_" + step.getName() + "," + vm.getName();
 	}
 	
 	@Override
-	public String getDecissionVariableX(Element step, DockerContainer container) {
+	public String getDecisionVariableX(Element step, DockerContainer container) {
 		return "x_" + step.getName() + "," + container.getName();
 	}
 
@@ -532,6 +532,24 @@ public class PlacementHelperImpl implements PlacementHelper {
 
 	public String getExecutionTimeVariable(WorkflowElement workflowInstance) {
 		return "e_w_" + workflowInstance.getName();
+	}
+	
+	public String getATimesG(VirtualMachine vm, DockerContainer container) {
+		String decisionVariableA = getDecisionVariableA(container, vm);
+        String decisionVariableG = getGVariable(vm);
+        return decisionVariableA + "_times_" + decisionVariableG;
+	}
+
+	public String getATimesT1(DockerContainer container, VirtualMachine vm) {
+		String decisionVariableA = getDecisionVariableA(container, vm);
+		return decisionVariableA + "_times_tau_t_1";
+	}
+	
+	@Override
+	public String getAtimesX(ProcessStep step, DockerContainer container, VirtualMachine vm) {
+		String decisionVariableA = getDecisionVariableA(container, vm);
+		String decisionVariableX = getDecisionVariableX(step, container);
+		return decisionVariableA + "_times_" + decisionVariableX;
 	}
 	
 	public int imageForStepEverDeployedOnVM(ProcessStep step, VirtualMachine vm) {

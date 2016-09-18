@@ -44,7 +44,13 @@ public class DockerContainer {
 
     public DockerContainer() {
     }
+    
+    public void setRunning(boolean r) {
+    	this.running = r;
+    }
 
+  
+    
     public DockerContainer(DockerImage dockerImage, DockerConfiguration containerConfiguration) {
         this.containerConfiguration = containerConfiguration;
         this.dockerImage = dockerImage;

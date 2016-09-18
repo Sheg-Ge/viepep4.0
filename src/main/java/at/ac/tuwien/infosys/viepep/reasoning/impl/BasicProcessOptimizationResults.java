@@ -41,8 +41,6 @@ public class BasicProcessOptimizationResults implements ProcessOptimizationResul
     private CacheVirtualMachineService cacheVirtualMachineService;
     @Autowired
     private CacheWorkflowService cacheWorkflowService;
-    @Autowired
-    private ProcessInstancePlacementProblemService opti;
 
 
     @Async
@@ -56,8 +54,6 @@ public class BasicProcessOptimizationResults implements ProcessOptimizationResul
         List<String> x = new ArrayList<>();
 
         StringBuilder stringBuilder2 = new StringBuilder();
-
-        System.out.println(opti.getAllObjectives(optimize));
 
         stringBuilder2.append("------------------------- VMs running ----------------------------\n");
         List<VirtualMachine> vMs = cacheVirtualMachineService.getAllVMs();
@@ -134,8 +130,8 @@ public class BasicProcessOptimizationResults implements ProcessOptimizationResul
      */
     private void processXYValues(Result optimize, Date tau_t, List<VirtualMachine> vmsToStart, List<ProcessStep> scheduledForExecution, List<String> y, List<String> x, List<VirtualMachine> vMs, ProcessStep processStep) {
         for (VirtualMachine virtualMachine : vMs) {
-            String x_v_k = placementHelper.getDecissionVariableX(processStep, virtualMachine);
-            String y_v_k = placementHelper.getDecissionVariableY(virtualMachine);
+            String x_v_k = placementHelper.getDecisionVariableX(processStep, virtualMachine);
+            String y_v_k = placementHelper.getDecisionVariableY(virtualMachine);
 
             Number x_v_k_number = optimize.get(x_v_k);
             Number y_v_k_number = optimize.get(y_v_k);

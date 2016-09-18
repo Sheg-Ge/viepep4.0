@@ -4,6 +4,7 @@ import at.ac.tuwien.infosys.viepep.database.entities.ProcessStep;
 import at.ac.tuwien.infosys.viepep.database.entities.WorkflowElement;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowService;
 import at.ac.tuwien.infosys.viepep.database.services.WorkflowDaoService;
+import at.ac.tuwien.infosys.viepep.reasoning.ProblemNotSolvedException;
 import at.ac.tuwien.infosys.viepep.reasoning.ProcessOptimizationResults;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.ProcessInstancePlacementProblemService;
@@ -22,12 +23,13 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Created by philippwaibel on 17/05/16. edited by Gerta Sheganaku
  */
 @Component
-@Scope("prototype")
+@Scope("singleton")
 @Slf4j
 public class ReasoningImpl {
 
@@ -47,6 +49,14 @@ public class ReasoningImpl {
 //    private Date tau_t;
     private boolean run = true;
 
+    private AtomicLong lastTerminateCheckTime = new AtomicLong(0);
+    private AtomicLong nextOptimizeTime = new AtomicLong(0);
+
+    private static final long POLL_INTERVAL_MILLISECONDS = 1000;
+    private static final long TERMINATE_CHECK_INTERVAL_MILLISECONDS = 10000;
+	public static final long MIN_TAU_T_DIFFERENCE_MS = 10 * 1000;
+	private static final long RETRY_TIMEOUT_MILLIS = 10 * 1000;
+
 
     @Async
     public Future<Boolean> runReasoning(Date date, boolean autoTerminate) throws InterruptedException {
@@ -56,38 +66,56 @@ public class ReasoningImpl {
 
         Date emptyTime = null;
 
-
         while (run) {
             synchronized (this) {
                 try {
-                    long difference = performOptimisation();
+                	long now = System.currentTimeMillis();
 
-                    Thread.sleep(difference);
+                	//System.out.println("now " + now);
+                	//System.out.println("next opt " + nextOptimizeTime.get());
 
-                    //finishWorkflow tau t for next round
-                    boolean empty = cacheWorkflowService.getRunningWorkflowInstances().isEmpty();
-                    log.info("  ***************** RunningWFL Instances (" + cacheWorkflowService.getRunningWorkflowInstances().size() + "running) WAS EMPTY? : " + empty);
-                    
-                    for(WorkflowElement workflow :cacheWorkflowService.getRunningWorkflowInstances()) {
-                    	System.out.println("\n running workflow: " + workflow);
-                    }
-                    
-                    if(empty) {
-                        if(emptyTime == null) {
-                        	emptyTime = new Date();
-                        };
-                        log.info("Time first empty: " + emptyTime);
-                    }
-                    else {
-                        emptyTime = null;
-                    }
-                    if (emptyTime != null && ((new Date()).getTime() - emptyTime.getTime()) >= (60 * 1000 * 2)) {
-                    	if (autoTerminate) {
-                    		run = false;
-                    	}
-                    }
+                	if (now - lastTerminateCheckTime.get() > TERMINATE_CHECK_INTERVAL_MILLISECONDS) {
+                		lastTerminateCheckTime.set(now);
+
+                		List<WorkflowElement> workflows = cacheWorkflowService.getRunningWorkflowInstances();
+                		log.info("  ***************** RunningWFL Instances (" + workflows.size() + "running) WAS EMPTY? : " + workflows.isEmpty());
+//                        for(WorkflowElement workflow: workflows) {
+//                        	System.out.println("\n running workflow: " + workflow);
+//                        }
+
+                        if(workflows.isEmpty()) {
+                            if(emptyTime == null) {
+                            	emptyTime = new Date();
+                            };
+                            log.info("Time first empty: " + emptyTime);
+                        }
+                        else {
+                            emptyTime = null;
+                        }
+                        if (emptyTime != null && ((new Date()).getTime() - emptyTime.getTime()) >= (60 * 1000 * 1)) {
+                        	if (autoTerminate) {
+                        		run = false;
+                        	}
+                        }
+                	}
+
+                	if (now >= nextOptimizeTime.get()) {
+
+                		 long difference = performOptimisation();
+
+                		 nextOptimizeTime.set(now + difference);
+                         // Thread.sleep(difference);
+                	}
+                   
+                	Thread.sleep(POLL_INTERVAL_MILLISECONDS);
+                	
+                	
+                } catch (ProblemNotSolvedException ex) {
+                    log.error("An exception occurred, could not solve the problem", ex);
+                    // try again in some time
+           		 	nextOptimizeTime.set(System.currentTimeMillis() + RETRY_TIMEOUT_MILLIS);
                 } catch (Exception ex) {
-                    log.error("An exception occurred, exit, check if tau was always divided by 1000 and or multiplied afterwards :D !!!!:\n", ex);
+                    log.error("An unknown exception occurred. Terminating.", ex);
                     run = false;
                 }
             }
@@ -143,7 +171,7 @@ public class ReasoningImpl {
         }
     }
 
-    private long performOptimisation() throws Exception {
+    public long performOptimisation() throws Exception {
 
         Date tau_t_0 = new Date();
         log.info("---------tau_t_0 : " + tau_t_0 + " ------------------------");
@@ -151,7 +179,7 @@ public class ReasoningImpl {
         Result optimize = resourcePredictionService.optimize(tau_t_0);
 
         if (optimize == null) {
-            throw new Exception("Could not solve the Problem");
+            throw new ProblemNotSolvedException("Could not solve the Problem");
         }
 
         log.info("Objective: " + optimize.getObjective());
@@ -165,7 +193,7 @@ public class ReasoningImpl {
         
         long difference = tau_t_1 - new Date().getTime();
         if (difference < 0 || difference > 60*60*1000) {
-            difference = 0;
+            difference = MIN_TAU_T_DIFFERENCE_MS;
         }
         log.info("---------sleep for: " + difference / 1000 + " seconds-----------");
         log.info("---------next iteration: " + new Date(tau_t_1) + " -----------");
@@ -177,4 +205,12 @@ public class ReasoningImpl {
     public void stop() {
         this.run = false;
     }
+
+    public void setNextOptimizeTimeNow() {
+    	setNextOptimizeTimeAfter(0);
+    }
+
+    public void setNextOptimizeTimeAfter(long millis) {
+		nextOptimizeTime.set(System.currentTimeMillis() + millis);
+	}
 }

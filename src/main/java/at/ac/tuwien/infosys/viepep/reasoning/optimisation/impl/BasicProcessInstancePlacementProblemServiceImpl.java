@@ -4,6 +4,7 @@ import at.ac.tuwien.infosys.viepep.database.entities.*;
 import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheVirtualMachineService;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowService;
+import at.ac.tuwien.infosys.viepep.reasoning.impl.ReasoningImpl;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.ProcessInstancePlacementProblemService;
 import ilog.concert.IloException;
@@ -44,8 +45,11 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     
     private static final double OMEGA_F_R_VALUE = 0.001;
     private static final double OMEGA_F_C_VALUE = 0.001;
+//    private static final double TAU_T_1_WEIGHT = 0.00000000001;
+
 
     private Date tau_t;
+    private static final long EPSILON = ReasoningImpl.MIN_TAU_T_DIFFERENCE_MS / 1000;
     
 //    private static final long TIMESLOT_DURATION = 20 * 1000 * 1; //timeslot duration is minimum 1 minute
 //    public static final long LEASING_DURATION = 60 * 1000 * 5; //timeslot duration is minimum 5 minutes
@@ -55,8 +59,8 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 //    private int internalTypes = 0;
     private long M;
 
-    private static final long SERVICE_DEPLOY_TIME = 40000L;
-    private static long VM_STARTUP_TIME = 40000L;
+    private static long SERVICE_DEPLOY_TIME = 30000L;
+    private static long VM_STARTUP_TIME = 60000L;
     
 //    private Map<Integer, Integer> currentVMUsage = new HashMap<>();
 
@@ -71,6 +75,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 //        for (VMType vmType : cacheVirtualMachineService.getVMTypes()) { //set K, max 1 iteration
 //            K = cacheVirtualMachineService.getVMs(vmType).size();
             VM_STARTUP_TIME = cacheVirtualMachineService.getAllVMs().get(0).getStartupTime();
+            SERVICE_DEPLOY_TIME = cacheVirtualMachineService.getAllVMs().get(0).getDeployTime();
 //            break;
 //        }
     }
@@ -155,26 +160,28 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
             });
         }
 
-        Result solve = solver.solve(problem);
+        Result solved = solver.solve(problem);
 
         int i = 0;
         StringBuilder vars = new StringBuilder();
 
-        if (solve != null) {
+        if (solved != null) {
             log.info("------------------------- Solved  -------------------------");
-            log.info(solve.toString());
+            log.info(solved.toString());
 
             log.info("------------------------- Variables -------------------------");
             for (Object variable : problem.getVariables()) {
-                vars.append(i).append(": ").append(variable).append("=").append(solve.get(variable)).append(", ");
+                vars.append(i).append(": ").append(variable).append("=").append(solved.get(variable)).append(", ");
                 i++;
             }
             log.info(vars.toString());
             log.info("-----------------------------------------------------------");
+            
+            System.out.println(getAllObjectives(solved));
         }
 
 
-        if (solve == null) {
+        if (solved == null) {
             log.error("-----------------------------------------------------------");
             Collection<Object> variables = problem.getVariables();
             i = 0;
@@ -190,14 +197,14 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
             log.error("-----------------------------------------------------------");
 
         }
-        return solve;
+        return solved;
 
     }
     
     private void addConstraint_20_to_25(Problem problem) {
         for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
         	String g_v_k = placementHelper.getGVariable(vm);
-        	String y_v_k = placementHelper.getDecissionVariableY(vm);
+        	String y_v_k = placementHelper.getDecisionVariableY(vm);
         	int b_v_k = placementHelper.getBeta(vm);
 
         	//Constraint 20
@@ -218,7 +225,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 //  private void addConstraint_20_to_25(Problem problem) {
 //  for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
 //  	String g_v_k = placementHelper.getGVariable(vm);
-//  	String y_v_k = placementHelper.getDecissionVariableY(vm);
+//  	String y_v_k = placementHelper.getDecisionVariableY(vm);
 //  	String g_times_y = placementHelper.getGYVariable(vm);
 //  	int b_v_k = placementHelper.getBeta(vm);
 //  	int y_upperBound = Integer.MAX_VALUE;
@@ -352,7 +359,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 
     		for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
             	for (Element step : nextSteps.get(workflowInstance.getName())) {
-            		String decisionVariableX = placementHelper.getDecissionVariableX(step, vm);
+            		String decisionVariableX = placementHelper.getDecisionVariableX(step, vm);
             		linear.add(-1 * coefficient, decisionVariableX);
                 }
             }
@@ -371,7 +378,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         }
         
         //maximize tau_t_1
-        linear.add(-1, "tau_t_1");
+//        linear.add(-TAU_T_1_WEIGHT, "tau_t_1");
         
         problem.setObjective(linear, OptType.MIN);
     }
@@ -409,7 +416,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     private void addConstraint_3(Problem problem) {
         Linear linear = new Linear();
         linear.add(1, "tau_t_1");
-        problem.add(linear, ">=", tau_t.getTime() / 1000 + 10); //+ TIMESLOT_DURATION / 1000);
+        problem.add(linear, ">=", tau_t.getTime() / 1000 + EPSILON); //+ TIMESLOT_DURATION / 1000);
         problem.setVarUpperBound("tau_t_1", Integer.MAX_VALUE);
     }
 
@@ -446,11 +453,11 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         	Linear linear = new Linear();
         	
             for (Element step : steps) {
-            	String decisionVariable = placementHelper.getDecissionVariableX(step, vm);
+            	String decisionVariable = placementHelper.getDecisionVariableX(step, vm);
             	linear.add(1, decisionVariable);
            }
             
-           String decisionVariableY = placementHelper.getDecissionVariableY(vm);
+           String decisionVariableY = placementHelper.getDecisionVariableY(vm);
            linear.add(-M, decisionVariableY);
            int beta = placementHelper.getBeta(vm);
            problem.add(linear, "<=", beta * M);
@@ -473,8 +480,8 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
                     //DS: we only need this constraint if the service types are different
                     if (!((ProcessStep) step1).getServiceType().name().equals(((ProcessStep) step2).getServiceType().name())) {
                         for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
-                            String decisionVariable1 = placementHelper.getDecissionVariableX(step1, vm);
-                            String decisionVariable2 = placementHelper.getDecissionVariableX(step2, vm);
+                            String decisionVariable1 = placementHelper.getDecisionVariableX(step1, vm);
+                            String decisionVariable2 = placementHelper.getDecisionVariableX(step2, vm);
                             Linear linear = new Linear();
                             linear.add(1, decisionVariable1);
                             linear.add(1, decisionVariable2);
@@ -501,7 +508,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
             Linear linear2 = new Linear(); //add me if ram is considered
 
             for (Element step : steps) {
-            	String decisionVariableX = placementHelper.getDecissionVariableX(step, vm);
+            	String decisionVariableX = placementHelper.getDecisionVariableX(step, vm);
                 double requiredCPUPoints = placementHelper.getRequiredCPUPoints((ProcessStep) step);
                 linear.add(requiredCPUPoints, decisionVariableX);
 
@@ -519,7 +526,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
             Linear linear = new Linear();
             Linear linear2 = new Linear(); //add me if ram is considered
             for (Element step : steps) {
-            	String decisionVariableX = placementHelper.getDecissionVariableX(step, vm);
+            	String decisionVariableX = placementHelper.getDecisionVariableX(step, vm);
                 linear.add(-placementHelper.getRequiredCPUPoints((ProcessStep) step), decisionVariableX);
                 linear2.add(-placementHelper.getRequiredRAMPoints((ProcessStep) step), decisionVariableX); //add me if ram is considered
             }
@@ -567,7 +574,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     private void addConstraint_19(Problem problem) {
         for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
             String g_v_k = placementHelper.getGVariable(vm);
-            String y_v_k = placementHelper.getDecissionVariableY(vm);
+            String y_v_k = placementHelper.getDecisionVariableY(vm);
             Linear linear = new Linear();
             linear.add(1, g_v_k);
             linear.add(-1, y_v_k);
@@ -582,7 +589,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     private void addConstraint_20(Problem problem) {
         for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
             String g_v_k = placementHelper.getGVariable(vm);
-            String y_v_k = placementHelper.getDecissionVariableY(vm);
+            String y_v_k = placementHelper.getDecisionVariableY(vm);
             Linear linear = new Linear();
             linear.add(1, g_v_k);
             linear.add(-1, y_v_k);
@@ -598,9 +605,9 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     private void addConstraint_21(Problem problem) {
         for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
         	List<Element> steps = getAllNextStepsAsList();
-            String decisionVariableY = placementHelper.getDecissionVariableY(vm);
+            String decisionVariableY = placementHelper.getDecisionVariableY(vm);
             for (Element step : steps) {
-            	String decisionVariableX = placementHelper.getDecissionVariableX(step, vm);
+            	String decisionVariableX = placementHelper.getDecisionVariableX(step, vm);
                 Linear linear = new Linear();
                 long remainingExecutionTime = ((ProcessStep) step).getRemainingExecutionTime(tau_t);
                 long serviceDeployTime = SERVICE_DEPLOY_TIME;
@@ -625,7 +632,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 
         for (Element step : steps) {
             VirtualMachine virtualMachine = ((ProcessStep) step).getScheduledAtVM();
-            String decisionVariableY = placementHelper.getDecissionVariableY(virtualMachine);
+            String decisionVariableY = placementHelper.getDecisionVariableY(virtualMachine);
             Linear linear = new Linear();
             long remainingExecutionTimeAndDeployTimes = getRemainingExecutionTimeAndDeployTimes(step);
             linear.add(-(placementHelper.getLeasingDuration(virtualMachine) / 1000), decisionVariableY);
@@ -644,7 +651,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
             String gamma = placementHelper.getGammaVariable(vmType);
             
             for (VirtualMachine vm : cacheVirtualMachineService.getVMs(vmType)) {
-                String variableY = placementHelper.getDecissionVariableY(vm);
+                String variableY = placementHelper.getDecisionVariableY(vm);
                 linear.add(1, variableY);
             }
             linear.add(-1, gamma);
@@ -657,7 +664,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         for (Element step : getAllNextStepsAsList()) {
             Linear linear = new Linear();
             for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
-                String variable = placementHelper.getDecissionVariableX(step, vm);
+                String variable = placementHelper.getDecisionVariableX(step, vm);
                 linear.add(1, variable);
             }
             problem.add(linear, "<=", 1);
@@ -669,7 +676,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         for (Element step : getAllRunningSteps()) {
             String vmName = ((ProcessStep) step).getScheduledAtVM().getName();
             for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
-                String variable = placementHelper.getDecissionVariableX(step, vm);
+                String variable = placementHelper.getDecisionVariableX(step, vm);
                 Linear linear = new Linear();
                 linear.add(1, variable);
                 boolean runsAt = vmName.equals(vm.getName());
@@ -690,7 +697,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     private void addConstraint_26(Problem problem) {
         for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
         	for (Element step : getAllNextStepsAsList()) {
-                String variable = placementHelper.getDecissionVariableX(step, vm);
+                String variable = placementHelper.getDecisionVariableX(step, vm);
                 Linear linear = new Linear();
                 linear.add(1, variable);
                 problem.add(linear, "<=", 1);
@@ -726,7 +733,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
      */
     private void addConstraint_28(Problem problem) {
         for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
-            String variable = placementHelper.getDecissionVariableY(vm);
+            String variable = placementHelper.getDecisionVariableY(vm);
             Linear linear = new Linear();
             linear.add(1, variable);
             //DS: y may take the values {0; 1; 2; ...; Integer.MaxValue}
@@ -766,7 +773,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 //                ProcessStep processStep = (ProcessStep) step;
 //                List<Integer> restrictedVMs = processStep.getRestrictedVMs();
 //                if (restrictedVMs != null && restrictedVMs.contains(vm.getVmType().getIdentifier())) {
-//                	String variable = placementHelper.getDecissionVariableX(step, vm);
+//                	String variable = placementHelper.getDecisionVariableX(step, vm);
 //                    Linear linear = new Linear();
 //                    linear.add(1, variable);
 //                    problem.add(linear, "=", 0);
@@ -1021,7 +1028,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
                 long remainingExecutionTimeAndDeployTimes = getRemainingExecutionTimeAndDeployTimes(elem);
                 if (nextStepIds.contains(elem.getName())) {
                     for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
-                        String decisionVariableX = placementHelper.getDecissionVariableX(elem, vm);
+                        String decisionVariableX = placementHelper.getDecisionVariableX(elem, vm);
                         linearProcessStep.add(remainingExecutionTimeAndDeployTimes / 1000, decisionVariableX);
                     }
                 }
@@ -1087,7 +1094,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         return this.problem.getVariables();
     }
     
-	public String getAllObjectives(Result optimize) {
+	private String getAllObjectives(Result optimize) {
 		System.out.println("\n Term 1 \n");
 		double sum1 = 0;
 
@@ -1132,7 +1139,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     		for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
 				for (Element step : nextSteps.get(workflowInstance.getName())) {
 					String decisionVariableX = placementHelper
-							.getDecissionVariableX(step, vm);
+							.getDecisionVariableX(step, vm);
 					int x = optimize.get(decisionVariableX).intValue();
 					sum4 += -1 * coefficient * x;
 				}
@@ -1148,14 +1155,8 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 		// Term 3
 		for (VirtualMachine vm : cacheVirtualMachineService.getAllVMs()) {
 			String fValueC = placementHelper.getFValueCVariable(vm);
-			double fc = optimize.get(fValueC).intValue();
-			String fValueR = placementHelper.getFValueRVariable(vm); // todo add
-																		// me
-																		// again
-																		// if
-																		// ram
-																		// is
-																		// considered
+			double fc = optimize.get(fValueC).doubleValue();
+			String fValueR = placementHelper.getFValueRVariable(vm); 
 			double fr = optimize.get(fValueR).doubleValue();
 			sum3 += OMEGA_F_C_VALUE * fc;
 			sum3 += OMEGA_F_R_VALUE * fr;

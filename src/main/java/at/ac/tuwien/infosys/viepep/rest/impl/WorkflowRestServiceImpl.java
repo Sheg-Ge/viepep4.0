@@ -2,6 +2,8 @@ package at.ac.tuwien.infosys.viepep.rest.impl;
 
 import at.ac.tuwien.infosys.viepep.database.entities.*;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowService;
+import at.ac.tuwien.infosys.viepep.reasoning.ReasoningActivator;
+import at.ac.tuwien.infosys.viepep.reasoning.impl.ReasoningImpl;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl.BasicProcessInstancePlacementProblemServiceImpl;
 import at.ac.tuwien.infosys.viepep.rest.WorkflowRestService;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +29,9 @@ public class WorkflowRestServiceImpl implements WorkflowRestService {
     @Autowired
     private CacheWorkflowService cacheWorkflowService;
 
+    @Autowired
+    private ReasoningImpl reasoning; 
+
     @RequestMapping( value="/", method = RequestMethod.GET, consumes = MediaType.APPLICATION_XML_VALUE)
     public List<WorkflowElement> getWorkflows() throws Exception {
         return cacheWorkflowService.getAllWorkflowElements();
@@ -42,6 +47,7 @@ public class WorkflowRestServiceImpl implements WorkflowRestService {
         log.info("add new WorkflowElement: " + workflowElement.toString());
     	cacheWorkflowService.addWorkflowInstance(workflowElement);
         log.info("Done: Add new WorkflowElement: " + workflowElement.toString());
+        reasoning.setNextOptimizeTimeNow();
     }
 
     @Override
@@ -60,6 +66,7 @@ public class WorkflowRestServiceImpl implements WorkflowRestService {
                     cacheWorkflowService.addWorkflowInstance(element);
                     log.info("Done: Add new WorkflowElement: " + element.toString());
                 }
+                reasoning.setNextOptimizeTimeNow();
             } catch (Exception ex) {
                 log.error("EXCEPTION", ex);
             }

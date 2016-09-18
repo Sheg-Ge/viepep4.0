@@ -27,7 +27,7 @@ public class ServiceExecutionController{
         final Map<VirtualMachine, List<ProcessStep>> vmProcessStepsMap = new HashMap<>();
         for (final ProcessStep processStep : processSteps) {
 
-            processStep.setStartDate(new Date());
+//            processStep.setStartDate(new Date());
             VirtualMachine scheduledAt = processStep.getScheduledAtVM();
             List<ProcessStep> processStepsOnVm = new ArrayList<>();
             if (vmProcessStepsMap.containsKey(scheduledAt)) {
@@ -52,6 +52,7 @@ public class ServiceExecutionController{
         }
     }
     
+    @Async("serviceProcessExecuter")
     public void startInvocation(List<ProcessStep> processSteps, List<DockerContainer> containers) {
 
     	final Map<VirtualMachine, Map<DockerContainer, List<ProcessStep>>> vmContainerProcessStepMap = new HashMap<>();
@@ -67,7 +68,7 @@ public class ServiceExecutionController{
         }
         
         for (final DockerContainer container : containerProcessStepsMap.keySet()) {
-            container.setStartedAt(new Date());
+            
             VirtualMachine scheduledAt = container.getVirtualMachine();
             if(scheduledAt == null) {
             	System.out.println("SCHEDULED AT (VM) NULL .  NO GOOD for container "+container);

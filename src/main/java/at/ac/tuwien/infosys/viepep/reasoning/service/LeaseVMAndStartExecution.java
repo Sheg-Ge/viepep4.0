@@ -4,6 +4,7 @@ import at.ac.tuwien.infosys.viepep.connectors.ViePEPClientService;
 import at.ac.tuwien.infosys.viepep.connectors.ViePEPDockerControllerService;
 import at.ac.tuwien.infosys.viepep.connectors.impl.exceptions.CouldNotStartDockerException;
 import at.ac.tuwien.infosys.viepep.connectors.impl.exceptions.CouldNotStopDockerException;
+import at.ac.tuwien.infosys.viepep.database.entities.DockerReportingAction;
 import at.ac.tuwien.infosys.viepep.database.entities.ProcessStep;
 import at.ac.tuwien.infosys.viepep.database.entities.ReportingAction;
 import at.ac.tuwien.infosys.viepep.database.entities.Action;
@@ -45,6 +46,8 @@ public class LeaseVMAndStartExecution {
 
     @Value("${simulate}")
     private boolean simulate;
+    @Value("${use.docker}")
+    private boolean useDocker;
     @Value("${virtualmachine.startup.time}")
     private long startupTime;
     
@@ -111,7 +114,9 @@ public class LeaseVMAndStartExecution {
 
     public void startExecutions(final List<ProcessStep> processSteps, final VirtualMachine virtualMachine) {
         for (final ProcessStep processStep : processSteps) {
-            serviceExecution.startExecution(processStep, virtualMachine);
+            processStep.setStartDate(new Date());
+        	serviceExecution.startExecution(processStep, virtualMachine);
+
         }
     }
 
@@ -119,6 +124,7 @@ public class LeaseVMAndStartExecution {
 		for (final DockerContainer container : containerProcessSteps.keySet()) {
 			startContainer(virtualMachine, container);
 			for (final ProcessStep processStep : containerProcessSteps.get(container)) {
+	            processStep.setStartDate(new Date());
 				serviceExecution.startExecution(processStep, container);
 			}	
 		}
@@ -129,7 +135,11 @@ public class LeaseVMAndStartExecution {
     	if (simulate) {
             address = "128.130.172.211";
             try {
-                Thread.sleep(30000L);
+                Thread.sleep(virtualMachine.getStartupTime());
+                /* if we are not in Docker mode, additionally sleep some time for deployment of the service */
+                if (!useDocker) {
+                    Thread.sleep(virtualMachine.getDeployTime());
+                }
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -172,6 +182,10 @@ public class LeaseVMAndStartExecution {
     	container.setRunning(true);
     	container.setStartedAt(new Date());
 		vm.addDockerContainer(container);
+
+    	DockerReportingAction report =  new DockerReportingAction(new Date(), container.getName(), vm.getName(), Action.START);
+        reportDaoService.save(report);
+         
     }
 
 }

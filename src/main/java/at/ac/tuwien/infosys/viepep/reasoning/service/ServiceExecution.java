@@ -7,11 +7,13 @@ import at.ac.tuwien.infosys.viepep.database.entities.WorkflowElement;
 import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowService;
 import at.ac.tuwien.infosys.viepep.reasoning.service.dto.InvocationResultDTO;
+import at.ac.tuwien.infosys.viepep.reasoning.impl.ReasoningImpl;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Scope;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -33,6 +35,9 @@ public class ServiceExecution{
     private PlacementHelper placementHelper;
     @Autowired
     private CacheWorkflowService cacheWorkflowService;
+    @Autowired
+    @Lazy
+    private ReasoningImpl reasoning;
 
     @Value("${simulate}")
     private boolean simulate;
@@ -86,7 +91,9 @@ public class ServiceExecution{
                 cacheWorkflowService.deleteRunningWorkflowInstance(workflowById);
                 log.info("Workflow done. Workflow: " + workflowById);
             }
-        }	
+        }
+        reasoning.setNextOptimizeTimeNow();
+        
 	}
 
 }

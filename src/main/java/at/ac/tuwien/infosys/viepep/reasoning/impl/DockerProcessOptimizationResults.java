@@ -52,8 +52,6 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
     private CacheWorkflowService cacheWorkflowService;
     @Autowired
     private ViePEPDockerControllerServiceImpl dockerControllerService;
-    @Autowired
-    private ProcessInstancePlacementProblemService opti;
 
     @Async
     public Future<Boolean> processResults(Result optimize, Date tau_t) {
@@ -69,8 +67,6 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
         List<String> a = new ArrayList<>();
 
         StringBuilder stringBuilder2 = new StringBuilder();
-
-        System.out.println(opti.getAllObjectives(optimize));
         
         stringBuilder2.append("------------------------- VMs running ----------------------------\n");
         List<VirtualMachine> vMs = cacheVirtualMachineService.getAllVMs();
@@ -128,9 +124,10 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
         stringBuilder2.append("------------------------------------------------------------------\n");
 
         cleanupContainers(optimize);
-
+        
+        stringBuilder2.append("----------- Container should be used (running or has to be started): ----\n");
         for (DockerContainer container : cacheDockerService.getAllDockerContainers()) {
-            stringBuilder2.append("All Containers: ").append(container).append("\n");
+            stringBuilder2.append(container).append("\n");
         }
         stringBuilder2.append("------------------------------------------------------------------\n");
         log.info(stringBuilder2.toString().replaceAll("(\r\n|\n)", "\r\n                                                                                                     "));
@@ -177,30 +174,31 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
     
     private void processXValues(Result optimize, Date tau_t, List<DockerContainer> containersToDeploy, List<ProcessStep> scheduledForExecution, List<String> c, List<DockerContainer> containers, ProcessStep processStep) {
     	for (DockerContainer container : containers) {
-        	String x_s_c = placementHelper.getDecissionVariableX(processStep, container);
+        	String x_s_c = placementHelper.getDecisionVariableX(processStep, container);
         	
             Number x_s_c_number = optimize.get(x_s_c);
 
             if (!c.contains(x_s_c)) {
                 c.add(x_s_c);
                 if(x_s_c_number != null) {
-                if (x_s_c_number.intValue() == 1) {
-                	containersToDeploy.add(container);
-                	System.out.println("X S C WAS NOT NULL for " + x_s_c + " CONTAINERS TO DEPLOY WAS UPDATED");
-
-                }
-            	System.out.println("X S C WAS NOT NULL for " + x_s_c + "Value was: " + x_s_c_number.intValue());
+                	int x_s_c_number_int = toInt(x_s_c_number);
+	                if (x_s_c_number_int == 1) {
+	                	containersToDeploy.add(container);
+//	                	System.out.println("X S C WAS NOT NULL for " + x_s_c + " CONTAINERS TO DEPLOY WAS UPDATED");
+	
+	                }
+//	            	System.out.println("X S C WAS NOT NULL for " + x_s_c + "Value was: " + x_s_c_number_int);
 
                 } else {
-                	System.out.println("X S C WAS NULL for " + x_s_c);
+//                	System.out.println("X S C WAS NULL for " + x_s_c);
                 }
             }
 
-            if (x_s_c_number == null || x_s_c_number.intValue() == 0) {
+            if (x_s_c_number == null || toInt(x_s_c_number) == 0) {
                 continue;
             }
 
-            if (x_s_c_number.intValue() == 1 && !scheduledForExecution.contains(processStep) && processStep.getStartDate() == null) {
+            if (toInt(x_s_c_number) == 1 && !scheduledForExecution.contains(processStep) && processStep.getStartDate() == null) {
                 processStep.setScheduledForExecution(true, tau_t, container);
                 scheduledForExecution.add(processStep);
                 if (!containersToDeploy.contains(container)) {
@@ -212,22 +210,23 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
     
     private void processAYValues(Result optimize, Date tau_t, List<VirtualMachine> vmsToStart, List<ProcessStep> scheduledForExecution, List<String> y, List<String> a, List<VirtualMachine> vMs, DockerContainer container) {
     	for (VirtualMachine virtualMachine : vMs) {
-        	String a_c_v = placementHelper.getDecissionVariableA(container, virtualMachine);
-            String y_v_k = placementHelper.getDecissionVariableY(virtualMachine);
+        	String a_c_v = placementHelper.getDecisionVariableA(container, virtualMachine);
+            String y_v_k = placementHelper.getDecisionVariableY(virtualMachine);
 
             Number a_c_v_number = optimize.get(a_c_v);
             Number y_v_k_number = optimize.get(y_v_k);
 
             if (!y.contains(y_v_k)) {
                 y.add(y_v_k);
-                if (y_v_k_number.intValue() >= 1) {
+                if (toInt(y_v_k_number) >= 1) {
                     vmsToStart.add(virtualMachine);
                     Date date = new Date();
                     if (virtualMachine.getToBeTerminatedAt() != null) {
                         date = virtualMachine.getToBeTerminatedAt();
                     }
                     
-                    virtualMachine.setToBeTerminatedAt(new Date(date.getTime() + (placementHelper.getLeasingDuration(virtualMachine) * y_v_k_number.intValue())));
+                    virtualMachine.setToBeTerminatedAt(new Date(date.getTime() +
+                    		(placementHelper.getLeasingDuration(virtualMachine) * toInt(y_v_k_number))));
                 }
             }
 
@@ -235,21 +234,17 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
             	a.add(a_c_v);
             }
             
-            if (a_c_v_number == null || a_c_v_number.intValue() == 0) {
+            if (a_c_v_number == null || toInt(a_c_v_number) == 0) {
                 continue;
             }
 
             
-            if (a_c_v_number.intValue() == 1) {
-            	if (container.getStartedAt() == null) {
-
-                    container.setVirtualMachine(virtualMachine);
-                    if (!vmsToStart.contains(virtualMachine)) {
-                        vmsToStart.add(virtualMachine);
-                    }
-            	} else {
-            		System.out.println("NO BE HERE PLEASE!!! ");
-            	}
+            if (toInt(a_c_v_number) == 1) {
+            	container.setVirtualMachine(virtualMachine);
+                if (!vmsToStart.contains(virtualMachine)) {
+                	vmsToStart.add(virtualMachine);
+                }
+            	
             }
         }
     }
@@ -261,7 +256,7 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
 //        for(VirtualMachine vm : vms) {
 //	        for (DockerContainer container : containers) {
 //	        	String decisionVariableA = placementHelper.getDecissionVariableA(container, vm);
-//	        	int a = optimize.get(decisionVariableA).intValue();
+//	        	int a = toInt(optimize.get(decisionVariableA));
 //	        	
 //	            if (a!=1 && (container.getVirtualMachine()!=null)) {
 //					System.out.println("CONTAINER IS CLOSED: "+ container + " it was on VM: " + container.getVirtualMachine() + " VarA " + decisionVariableA);
@@ -276,8 +271,8 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
         for (DockerContainer container : containers) {
         	VirtualMachine vm = container.getVirtualMachine();
         	if(vm != null) {
-            	String decisionVariableA = placementHelper.getDecissionVariableA(container, vm);
-            	int a = optimize.get(decisionVariableA).intValue();
+            	String decisionVariableA = placementHelper.getDecisionVariableA(container, vm);
+            	int a = toInt(optimize.get(decisionVariableA));
             	
                 if (a!=1) {
     				System.out.println("CONTAINER IS CLOSED: "+ container + " it was on VM: " + container.getVirtualMachine() + " VarA " + decisionVariableA);
@@ -297,4 +292,9 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
             }
         }
     }
+
+	private int toInt(Number n) {
+		return (int)Math.round(n.doubleValue());
+	}
+	
 }

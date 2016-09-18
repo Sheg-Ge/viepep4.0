@@ -51,7 +51,6 @@ public abstract class NativeLibraryLoader {
 	            LOG.info("try manual way");
 	
 	            useCPLEX = extractNativeResources();
-	            useCPLEX = false; // TODO!!! remove
 	            if (!useCPLEX) {
 	
 	                //use this if you using maven assembly plugin with

@@ -18,8 +18,6 @@ public interface ProcessInstancePlacementProblemService {
 
     void initializeParameters();
 
-	String getAllObjectives(Result optimize);
-
 //    VirtualMachine getVMById(String vmID);
 
 //    int getZ(String processStepType, int v, int k);

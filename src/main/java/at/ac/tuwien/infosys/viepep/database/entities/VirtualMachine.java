@@ -175,5 +175,6 @@ public class VirtualMachine implements Serializable {
         this.setStarted(false);
         this.setStartedAt(null);
         this.setToBeTerminatedAt(null);
+        this.serviceType = null;
     }
 }

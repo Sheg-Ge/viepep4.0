@@ -46,7 +46,7 @@ public interface PlacementHelper {
 
 	double getPenaltyCostPerQoSViolationForProcessInstance(WorkflowElement workflowInstance);
 
-	String getDecissionVariableX(Element step, VirtualMachine vm);
+	String getDecisionVariableX(Element step, VirtualMachine vm);
 
 	String getFValueCVariable(VirtualMachine vm);
 	
@@ -54,7 +54,7 @@ public interface PlacementHelper {
 
 	int getBeta(VirtualMachine vm);
 
-	String getDecissionVariableY(VirtualMachine vm);
+	String getDecisionVariableY(VirtualMachine vm);
 
 	int getZ(String type, VirtualMachine vm);
 
@@ -74,9 +74,9 @@ public interface PlacementHelper {
 
 	long getEnactmentDeadline(WorkflowElement workflowInstance);
 
-	String getDecissionVariableX(Element step, DockerContainer container);
+	String getDecisionVariableX(Element step, DockerContainer container);
 
-	String getDecissionVariableA(DockerContainer dockerContainer, VirtualMachine vm);
+	String getDecisionVariableA(DockerContainer dockerContainer, VirtualMachine vm);
 
 	double getSuppliedCPUPoints(DockerContainer dockerContainer);
 
@@ -93,5 +93,11 @@ public interface PlacementHelper {
 	int imageForContainerEverDeployedOnVM(DockerContainer dockerContainer, VirtualMachine vm);
 
 	long getRemainingSetupTime(DockerContainer scheduledAtContainer, Date tau_t);
+
+	String getATimesG(VirtualMachine vm, DockerContainer container);
+
+	String getATimesT1(DockerContainer container, VirtualMachine vm);
+
+	String getAtimesX(ProcessStep step, DockerContainer container, VirtualMachine vm);
 
 }

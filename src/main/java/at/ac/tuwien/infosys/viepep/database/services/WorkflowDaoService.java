@@ -5,6 +5,7 @@ import at.ac.tuwien.infosys.viepep.database.entities.ProcessStep;
 import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
 import at.ac.tuwien.infosys.viepep.database.entities.WorkflowElement;
 import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
+import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerImage;
 import at.ac.tuwien.infosys.viepep.database.repositories.WorkflowElementRepository;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +36,9 @@ public class WorkflowDaoService {
 	private VirtualMachineDaoService virtualMachineDaoService;
 	@Autowired
 	private DockerContainerDaoService dockerContainerDaoService;
-	
+	@Autowired
+	private DockerImageDaoService dockerImageDaoService;
+
 	@Value("${use.docker}")
 	private boolean useDocker;
 
@@ -67,6 +70,17 @@ public class WorkflowDaoService {
 				if (useDocker) {
 					DockerContainer dockerContainer = ((ProcessStep) element).getScheduledAtContainer();
 					if (dockerContainer != null) { // if the process step is after an XOR the process steps on one side of the XOR are not executed
+						// make sure we save the DockerImage first, to avoid org.hibernate.TransientPropertyValueException:
+						DockerImage img = dockerContainer.getDockerImage();
+						if(img != null) {
+							DockerImage dockerImgInDB = dockerImageDaoService.getDockerImage(img);
+							if(dockerImgInDB == null) {
+								img = dockerImageDaoService.save(img);
+								dockerContainer.setDockerImage(img);
+							} else {
+								dockerContainer.setDockerImage(dockerImgInDB);
+							}
+						}
 						if (dockerContainer.getId() != null) {
 							dockerContainer = dockerContainerDaoService.getDockerContainer(dockerContainer);
 							((ProcessStep) element).setScheduledAtContainer(dockerContainer);
@@ -76,10 +90,8 @@ public class WorkflowDaoService {
 							((ProcessStep) element).setScheduledAtContainer(dockerContainer);
 						}
 					}
-					
 				}
 			}
-
 		}
 		return workflowElementRepository.save(workflow);
 	}
