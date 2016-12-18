@@ -168,8 +168,7 @@ public class LeaseVMAndStartExecution {
     			}
                 Thread.sleep(container.getStartupTime()); 
             } catch (InterruptedException e) {
-                e.printStackTrace();
-                
+                throw new RuntimeException(e);
             }
     	} else {
     		log.info("Start Container: " + container + " on VM: " + vm);

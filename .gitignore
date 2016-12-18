@@ -21,6 +21,8 @@ ssh.properties
 src/main/resources/natives/
 
 *.properties.bk
+.DS_Store
+/lib/
 
 .classpath
 .project

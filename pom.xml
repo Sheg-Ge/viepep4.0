@@ -26,6 +26,7 @@
 		<apache.httpcomponents>4.5.2</apache.httpcomponents>
 		<openstack.client>3.2.1</openstack.client>
 		<docker.client>3.5.12</docker.client>
+		
 	</properties>
 
 	<repositories>

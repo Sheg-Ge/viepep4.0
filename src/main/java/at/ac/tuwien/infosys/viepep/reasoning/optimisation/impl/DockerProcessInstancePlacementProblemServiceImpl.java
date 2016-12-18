@@ -12,6 +12,11 @@ import at.ac.tuwien.infosys.viepep.reasoning.optimisation.ProcessInstancePlaceme
 import ilog.concert.IloException;
 import ilog.concert.IloNumVar;
 import ilog.cplex.IloCplex;
+import ilog.cplex.IloCplex.BooleanParam;
+import ilog.cplex.IloCplex.DoubleParam;
+import ilog.cplex.IloCplex.IntParam;
+import ilog.cplex.IloCplex.LongParam;
+import ilog.cplex.IloCplex.StringParam;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.javailp.*;
 
@@ -64,7 +69,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 //    private int internalTypes = 0; //not considered
     private long M = 10;
     private long N = 100;
-    
+
     private static long CONTAINER_DEPLOY_TIME = 30000L; //30
     private static long VM_STARTUP_TIME = 60000L; //60
 
@@ -115,7 +120,6 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
         this.tau_t = tau_t;
 //      M = 100000 / 1000;
         SolverFactory factory;
-        System.out.println("useCPLEX " + useCPLEX);
         if (useCPLEX) {
         	factory = new SolverFactoryCPLEX();//use cplex
         	log.info("#### ---- Using CPLEX Solver");
@@ -170,10 +174,28 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
                 public void call(IloCplex cplex, Map<Object, IloNumVar> varToNum) {
                     try {
                         cplex.setParam(IloCplex.DoubleParam.TiLim, 60); //(TIMESLOT_DURATION / 1000) - 10);  //60
-                        // cplex.setParam(IloCplex.IntParam.RepeatPresolve, 3);
-                        // cplex.setParam(IloCplex.LongParam.RepairTries, 20);
-
+                        cplex.setParam(IloCplex.IntParam.RepeatPresolve, 3);
+                        cplex.setParam(IloCplex.LongParam.RepairTries, 20);
                         /* set optimality gap to ensure we get an optimal solution */
+                        cplex.setParam(IloCplex.DoubleParam.EpGap, 0);
+                        cplex.setParam(IloCplex.DoubleParam.EpAGap, 0);
+
+                        //defaults:
+//                        cplex.getParam(IloCplex.DoubleParam.EpGap) 0.0
+//                        cplex.getParam(IloCplex.DoubleParam.EpAGap) 0.0
+//                        cplex.getParam(IloCplex.IntParam.NodeLim) 2147483647
+//                        cplex.getParam(IloCplex.IntParam.IntSolLim) 2147483647
+//                        cplex.getParam(IloCplex.DoubleParam.TreLim) 1.0E75
+//                        cplex.getParam(IloCplex.DoubleParam.TiLim) 60.0
+//                        cplex.getParam(IloCplex.DoubleParam.ItLim) 2147483647
+//                        cplex.getParam(IloCplex.DoubleParam.CutUp) 1.0E75
+//                        cplex.getParam(IloCplex.DoubleParam.CutLo) -1.0E75
+//                        cplex.getParam(IloCplex.IntParam.PopulateLim) 20
+//                        cplex.getParam(IloCplex.DoubleParam.SolnPoolAGap) 1.0E75
+//                        cplex.getParam(IloCplex.DoubleParam.SolnPoolGap) 1.0E75
+//                        cplex.getParam(IloCplex.IntParam.SolnPoolCapacity) 2100000000
+//                        cplex.getParam(IloCplex.IntParam.SolnPoolIntensity) 0
+
 //                        System.out.println("cplex.getParam(IloCplex.DoubleParam.EpGap) " + cplex.getParam(IloCplex.DoubleParam.EpGap));
 //                        System.out.println("cplex.getParam(IloCplex.DoubleParam.EpAGap) " + cplex.getParam(IloCplex.DoubleParam.EpAGap));
 //                        System.out.println("cplex.getParam(IloCplex.IntParam.NodeLim) " + cplex.getParam(IloCplex.IntParam.NodeLim));
@@ -188,16 +210,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 //                        System.out.println("cplex.getParam(IloCplex.DoubleParam.SolnPoolGap) " + cplex.getParam(IloCplex.DoubleParam.SolnPoolGap));
 //                        System.out.println("cplex.getParam(IloCplex.IntParam.SolnPoolCapacity) " + cplex.getParam(IloCplex.IntParam.SolnPoolCapacity));
 //                        System.out.println("cplex.getParam(IloCplex.IntParam.SolnPoolIntensity) " + cplex.getParam(IloCplex.IntParam.SolnPoolIntensity));
-                        cplex.setParam(IloCplex.DoubleParam.EpGap, 0);
-                        cplex.setParam(IloCplex.DoubleParam.EpAGap, 0);
 
-//                        cplex.setParam(IloCplex.DoubleParam.SolnPoolAGap, 0.5);
-//                        cplex.setParam(IloCplex.IntParam.PopulateLim, 1000);
-//                        cplex.setParam(IloCplex.IntParam.SolnPoolCapacity, 10);
-//                        cplex.setParam(IloCplex.IntParam.SolnPoolIntensity, 4);
-                        // cplex.setParam(IloCplex.IntParam.NodeLim, 0);
-                        // cplex.setParam(IloCplex.DoubleParam.TreLim, 0);
-                        // cplex.setParam(IloCplex.IntParam.IntSolLim, -1);
                     } catch (IloException e) {
                         e.printStackTrace();
                     }
@@ -1649,20 +1662,20 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
     }
     
 	private String getAllObjectives(Result optimize) {
-		System.out.println("\n Term 1 \n");
+		log.debug("\n Term 1 \n");
 		double sum1 = 0;
 
 		for (VMType vmType : cacheVirtualMachineService.getVMTypes()) {
 			String gamma = placementHelper.getGammaVariable(vmType);
 			double c = optimize.get(gamma).doubleValue();
 			sum1 += vmType.getCosts() * c;
-			System.out.println("Sum just increased for vmType: " + vmType);
-			System.out.println("vmCosts are: " + vmType.getCosts() + ", "+gamma +": " + c + " --> cost*gamma = "+ vmType.getCosts() * c);
+			log.debug("Sum just increased for vmType: " + vmType);
+			log.debug("vmCosts are: " + vmType.getCosts() + ", "+gamma +": " + c + " --> cost*gamma = "+ vmType.getCosts() * c);
 		}
 
-		System.out.println("Value: " + sum1);
+		log.debug("Value: " + sum1);
 
-		System.out.println("\n Term 2 \n");
+		log.debug("\n Term 2 \n");
 		double sum2 = 0;
 		double sum6 = 0;
 		for (WorkflowElement workflowInstance : getNextWorkflowInstances()) {
@@ -1691,9 +1704,9 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 			}
 		}
 
-		System.out.println("Value: " + sum2);
+		log.debug("Value: " + sum2);
 
-		System.out.println("\n Term 3 \n");
+		log.debug("\n Term 3 \n");
 		double sum3 = 0;
 
 		// Term 3
@@ -1708,9 +1721,9 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 
 		}
 
-		System.out.println("Value: " + sum3);
+		log.debug("Value: " + sum3);
 
-		System.out.println("\n Term 4 \n");
+		log.debug("\n Term 4 \n");
 		double sum4 = 0;
 
 		// Term 4
@@ -1723,9 +1736,9 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 			sum4 += OMEGA_F_R_VALUE * fr;
 		}
 
-		System.out.println("Value: " + sum4);
+		log.debug("Value: " + sum4);
 
-		System.out.println("\nTerm 5 \n");
+		log.debug("\nTerm 5 \n");
 		double sum5 = 0;
 		// Term 5
 		for (VirtualMachine vm : cacheVirtualMachineService.getAllVMs()) {
@@ -1740,10 +1753,10 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 			}
 		}
 		
-		System.out.println("Value: " + sum5);
+		log.debug("Value: " + sum5);
 
-		System.out.println("\n Term 6 \n");
-		System.out.println("Value: " + sum6);
+		log.debug("\n Term 6 \n");
+		log.debug("Value: " + sum6);
 
 		
 //		System.out.println("_______________ ALL CONSTRAINTS ______________________");

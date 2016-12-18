@@ -182,12 +182,10 @@ public class ReasoningImpl {
             throw new ProblemNotSolvedException("Could not solve the Problem");
         }
 
-        log.info("Objective: " + optimize.getObjective());
+        System.out.println("Objective: " + optimize.getObjective());
         long tau_t_1 = optimize.get("tau_t_1").longValue() * 1000;//VERY IMPORTANT,
-        System.out.println("tau_t_1 was calculted as: "+ new Date(tau_t_1) );
-        System.out.println("Execution time ");
-        
-        
+        log.info("tau_t_1 was calculted as: "+ new Date(tau_t_1) );
+
         Future<Boolean> processed = processOptimizationResults.processResults(optimize, tau_t_0);
         processed.get();
         

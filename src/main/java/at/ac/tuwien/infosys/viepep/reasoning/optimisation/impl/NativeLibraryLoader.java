@@ -38,8 +38,7 @@ public abstract class NativeLibraryLoader {
 
         if(overwriteUseLPSolve) {
             //still not, try loading alternative solver
-        	System.out.println("LOADING LPSOLVE");
-            loadLibraryFromJarFiles("lpsolve55j_x64");
+        	loadLibraryFromJarFiles("lpsolve55j_x64");
             useCPLEX = false;
         } else {
 	        try {

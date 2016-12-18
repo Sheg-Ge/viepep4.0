@@ -86,12 +86,13 @@ public class ServiceExecutionController{
                     virtualMachine.setLeased(true);
                     virtualMachine.setStartedAt(new Date());
                     leaseVMAndStartExecution.leaseVMAndStartExecution(virtualMachine, containerProcessSteps);
-
                 } else {
                     leaseVMAndStartExecution.startExecutions(vmContainerProcessStepMap.get(virtualMachine), virtualMachine);
                 }
 			} catch (Exception e) {
-				log.error("Unable start invocation: " + e);
+				if(!(e.getCause() instanceof InterruptedException)) {
+					log.error("Unable start invocation: " + e);
+				}
 			}
         }
     }

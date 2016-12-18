@@ -5,6 +5,12 @@ import ilog.concert.IloLinearNumExpr;
 import ilog.concert.IloNumVar;
 import ilog.concert.IloNumVarType;
 import ilog.cplex.IloCplex;
+import ilog.cplex.IloCplex.BooleanParam;
+import ilog.cplex.IloCplex.DoubleParam;
+import ilog.cplex.IloCplex.IntParam;
+import ilog.cplex.IloCplex.LongParam;
+import ilog.cplex.IloCplex.Status;
+import ilog.cplex.IloCplex.StringParam;
 import net.sf.javailp.*;
 
 import java.util.HashMap;
@@ -12,10 +18,13 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 /**
- * Created by Philipp Hoenisch on 8/20/14.
+ * Created by Philipp Hoenisch on 8/20/14. Modified by Gerta Sheganaku
  */
 public class ViePEPSolverCPLEX extends SolverCPLEX {
 
+    public static final Map<Object,Object> CPLEX_PARAMS = new HashMap<>();
+    // TODO for testing only
+	public static Result LAST_RESULT;
 
     /*
      * (non-Javadoc)
@@ -30,7 +39,27 @@ public class ViePEPSolverCPLEX extends SolverCPLEX {
         try {
             IloCplex cplex = new IloCplex();
 
+            // disable console logging
+            cplex.setOut(null);
+
             initWithParameters(cplex);
+            
+            // set custom parameters
+            for(Object key : CPLEX_PARAMS.keySet()) {
+            	if(key instanceof DoubleParam) {
+                    cplex.setParam((DoubleParam)key, (double) CPLEX_PARAMS.get(key));
+            	} else if(key instanceof IntParam) {
+                    cplex.setParam((IntParam)key, (int) CPLEX_PARAMS.get(key));
+            	} else if(key instanceof LongParam) {
+                    cplex.setParam((LongParam)key, (long) CPLEX_PARAMS.get(key));
+            	} else if(key instanceof LongParam) {
+                    cplex.setParam((StringParam)key, (String) CPLEX_PARAMS.get(key));
+            	} else if(key instanceof LongParam) {
+                    cplex.setParam((BooleanParam)key, (boolean) CPLEX_PARAMS.get(key));
+            	} else {
+            		throw new RuntimeException("Unexpected parameter type: " + key);
+            	}
+            }
 
             for (Object variable : problem.getVariables()) {
                 VarType varType = problem.getVarType(variable);
@@ -94,8 +123,8 @@ public class ViePEPSolverCPLEX extends SolverCPLEX {
                 hook.call(cplex, varToNum);
             }
             cplex.setParam(IloCplex.BooleanParam.PreInd, false);
-            if (!cplex.solve()) {
 
+            if (!cplex.solve()) {
                 cplex.end();
                 return null;
             }
@@ -122,10 +151,13 @@ public class ViePEPSolverCPLEX extends SolverCPLEX {
                 }
             }
 
-            System.out.println("\n##### ----- CPLEX SOLVER STATUS: "+ cplex.getStatus()+"\n");
-
+            if(cplex.getStatus() != Status.Optimal) {
+                System.out.println("\n##### ----- CPLEX SOLVER STATUS: "+ cplex.getStatus()+"\n");
+            }
             
             cplex.end();
+
+            LAST_RESULT = result;
 
             return result;
 

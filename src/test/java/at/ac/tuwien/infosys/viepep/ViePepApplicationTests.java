@@ -94,6 +94,7 @@ public class ViePepApplicationTests {
 	}
 
 	@Test
+	@Ignore
 	public void testStartNewAWSVM_AddContainer_ResizeContainer_Terminate() throws Exception {
 		log.info("TEST testStartNewAWSVM_AddContainer_ResizeContainer_Terminate started...");
 

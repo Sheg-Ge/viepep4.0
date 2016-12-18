@@ -16,16 +16,14 @@ import at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl.DockerProcessInst
 @Profile("docker")
 @PropertySource(value = "application-docker.properties")
 public class DockerOptimizerConfiguration {
-	
+
 	@Bean
 	public ProcessInstancePlacementProblemService initializeParameters() {
-		System.out.println("Profile docker!!");
 		return new DockerProcessInstancePlacementProblemServiceImpl();
 	}
-	
+
 	@Bean
 	public ProcessOptimizationResults processResults() {
-		System.out.println("Profile docker!!");
 		return new DockerProcessOptimizationResults();
 	}
 

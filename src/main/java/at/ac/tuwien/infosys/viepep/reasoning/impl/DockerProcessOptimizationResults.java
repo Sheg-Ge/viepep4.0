@@ -163,7 +163,7 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
         
         
         for (DockerContainer container : containersToDeploy) {
-        	System.out.println("PROCESSING A VALUES FOR CONTAINER: "+container);
+        	log.debug("PROCESSING A VALUES FOR CONTAINER: " + container);
             processAYValues(optimize, tau_t, vmsToStart, scheduledForExecution, y, a, vMs, container);
         }
     }
@@ -181,13 +181,13 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
                 	int x_s_c_number_int = toInt(x_s_c_number);
 	                if (x_s_c_number_int == 1) {
 	                	containersToDeploy.add(container);
-//	                	System.out.println("X S C WAS NOT NULL for " + x_s_c + " CONTAINERS TO DEPLOY WAS UPDATED");
+//	                	log.debug("X S C WAS NOT NULL for " + x_s_c + " CONTAINERS TO DEPLOY WAS UPDATED");
 	
 	                }
-//	            	System.out.println("X S C WAS NOT NULL for " + x_s_c + "Value was: " + x_s_c_number_int);
+//	            	log.debug("X S C WAS NOT NULL for " + x_s_c + "Value was: " + x_s_c_number_int);
 
                 } else {
-//                	System.out.println("X S C WAS NULL for " + x_s_c);
+//                	log.debug("X S C WAS NULL for " + x_s_c);
                 }
             }
 
@@ -254,8 +254,8 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
 //	        	int a = toInt(optimize.get(decisionVariableA));
 //	        	
 //	            if (a!=1 && (container.getVirtualMachine()!=null)) {
-//					System.out.println("CONTAINER IS CLOSED: "+ container + " it was on VM: " + container.getVirtualMachine() + " VarA " + decisionVariableA);
-//	            	System.out.println("VM    :" +vm);
+//					log.debug("CONTAINER IS CLOSED: "+ container + " it was on VM: " + container.getVirtualMachine() + " VarA " + decisionVariableA);
+//	            	log.debug("VM    :" +vm);
 //					placementHelper.stopDockerContainer(container);
 //					
 //	            }
@@ -270,8 +270,8 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
             	int a = toInt(optimize.get(decisionVariableA));
             	
                 if (a!=1) {
-    				System.out.println("CONTAINER IS CLOSED: "+ container + " it was on VM: " + container.getVirtualMachine() + " VarA " + decisionVariableA);
-                	System.out.println("VM    :" +vm);
+    				log.debug("CONTAINER IS CLOSED: "+ container + " it was on VM: " + container.getVirtualMachine() + " VarA " + decisionVariableA);
+    				log.debug("VM    :" +vm);
     				placementHelper.stopDockerContainer(container);
     				
                 }
