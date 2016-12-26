@@ -31,8 +31,17 @@ public class CacheDockerService {
     @Value("${docker.image.name}")
     private String imageNamePrefix;
 
-    private Integer SERVICE_TYPES = 10; // how many docker images (mapping one service types)
-    private Integer CONTAINERS_PER_IMAGE = 4; //different configurations per Image/Service Type
+    @Value("${dockercontainer.startup.time}")
+    private long defaultDockerStartupTime;
+    @Value("${dockercontainer.deploy.time}")
+    private long defaultDockerDeployTime;
+    @Value("${dockercontainer.deploy.cost}")
+    private long defaultDockerDeployCost;
+    
+    @Value("${dockercontainer.images}")
+    private int SERVICE_TYPES; // how many docker images (mapping one service types)
+    @Value("${dockercontainer.instances.perimage}")
+    private int CONTAINERS_PER_IMAGE; //different configurations per Image/Service Type
     
     public void initializeDockerContainers() {
         for (int st = 1; st <= SERVICE_TYPES; st++) {
@@ -59,7 +68,11 @@ public class CacheDockerService {
             	}
             	
             	if(dockerImage.getServiceType().getCpuLoad() <= configuration.getCPUPoints() && dockerImage.getServiceType().getMemory() <= configuration.getRAM()){
-    				inMemoryCache.addDockerContainer(new DockerContainer(dockerImage, configuration));
+            		DockerContainer container = new DockerContainer(dockerImage, configuration);
+            		container.setDeployCost(defaultDockerDeployCost);
+            		container.setDeployTime(defaultDockerDeployTime);
+            		container.setStartupTime(defaultDockerStartupTime);
+    				inMemoryCache.addDockerContainer(container);
                 }
             }
         }

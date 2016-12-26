@@ -1,13 +1,13 @@
 package at.ac.tuwien.infosys.viepep.reasoning.impl;
 
-import at.ac.tuwien.infosys.viepep.database.entities.ProcessStep;
-import at.ac.tuwien.infosys.viepep.database.entities.WorkflowElement;
-import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowService;
-import at.ac.tuwien.infosys.viepep.database.services.WorkflowDaoService;
-import at.ac.tuwien.infosys.viepep.reasoning.ProblemNotSolvedException;
-import at.ac.tuwien.infosys.viepep.reasoning.ProcessOptimizationResults;
-import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
-import at.ac.tuwien.infosys.viepep.reasoning.optimisation.ProcessInstancePlacementProblemService;
+import static at.ac.tuwien.infosys.viepep.Constants.START_EPOCH;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
+
 import lombok.extern.slf4j.Slf4j;
 import net.sf.javailp.Result;
 
@@ -16,14 +16,15 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicLong;
+import at.ac.tuwien.infosys.viepep.database.entities.ProcessStep;
+import at.ac.tuwien.infosys.viepep.database.entities.WorkflowElement;
+import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowService;
+import at.ac.tuwien.infosys.viepep.database.services.WorkflowDaoService;
+import at.ac.tuwien.infosys.viepep.reasoning.ProblemNotSolvedException;
+import at.ac.tuwien.infosys.viepep.reasoning.ProcessOptimizationResults;
+import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
+import at.ac.tuwien.infosys.viepep.reasoning.optimisation.ProcessInstancePlacementProblemService;
 
 /**
  * Created by philippwaibel on 17/05/16. edited by Gerta Sheganaku
@@ -61,7 +62,6 @@ public class ReasoningImpl {
     @Async
     public Future<Boolean> runReasoning(Date date, boolean autoTerminate) throws InterruptedException {
 
-        resourcePredictionService.initializeParameters();
         run = true;
 
         Date emptyTime = null;
@@ -183,7 +183,8 @@ public class ReasoningImpl {
         }
 
         System.out.println("Objective: " + optimize.getObjective());
-        long tau_t_1 = optimize.get("tau_t_1").longValue() * 1000;//VERY IMPORTANT,
+        long tau_t_1 = (START_EPOCH * optimize.get("tau_t_1").longValue()) * 1000;//VERY IMPORTANT,
+
         log.info("tau_t_1 was calculted as: "+ new Date(tau_t_1) );
 
         Future<Boolean> processed = processOptimizationResults.processResults(optimize, tau_t_0);

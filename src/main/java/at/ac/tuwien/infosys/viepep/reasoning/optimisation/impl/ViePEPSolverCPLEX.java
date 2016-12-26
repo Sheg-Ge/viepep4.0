@@ -26,6 +26,16 @@ public class ViePEPSolverCPLEX extends SolverCPLEX {
     // TODO for testing only
 	public static Result LAST_RESULT;
 
+    private IloCplex cplex;
+
+    public ViePEPSolverCPLEX() {
+    	try {
+			cplex = new IloCplex();
+		} catch (IloException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
     /*
      * (non-Javadoc)
      *
@@ -37,7 +47,6 @@ public class ViePEPSolverCPLEX extends SolverCPLEX {
         Map<Object, IloNumVar> varToNum = new HashMap<Object, IloNumVar>();
 
         try {
-            IloCplex cplex = new IloCplex();
 
             // disable console logging
             cplex.setOut(null);
@@ -82,7 +91,7 @@ public class ViePEPSolverCPLEX extends SolverCPLEX {
                         break;
                 }
 
-                IloNumVar num = cplex.numVar(lb, ub, type);
+                IloNumVar num = cplex.numVar(lb, ub, type, (String) variable);
 
                 numToVar.put(num, variable);
                 varToNum.put(variable, num);
@@ -154,6 +163,9 @@ public class ViePEPSolverCPLEX extends SolverCPLEX {
             if(cplex.getStatus() != Status.Optimal) {
                 System.out.println("\n##### ----- CPLEX SOLVER STATUS: "+ cplex.getStatus()+"\n");
             }
+            System.out.println("........ Cplex status: "+ cplex.getCplexStatus());
+            System.out.println("........ Cplex substatus: " + cplex.getCplexSubStatus());
+            System.out.println("........ solver status: "+ cplex.getStatus());
             
             cplex.end();
 
@@ -167,6 +179,10 @@ public class ViePEPSolverCPLEX extends SolverCPLEX {
 
         return null;
     }
+
+	public IloCplex getCplex() {
+		return cplex;
+	}
 
 
 }

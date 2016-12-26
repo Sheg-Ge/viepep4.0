@@ -124,9 +124,11 @@ public class LeaseVMAndStartExecution {
 		for (final DockerContainer container : containerProcessSteps.keySet()) {
 			startContainer(virtualMachine, container);
 			for (final ProcessStep processStep : containerProcessSteps.get(container)) {
-	            processStep.setStartDate(new Date());
-				serviceExecution.startExecution(processStep, container);
-			}	
+				if(!processStep.isRescheduled()){
+					processStep.setStartDate(new Date());
+					serviceExecution.startExecution(processStep, container);
+				}	
+			}
 		}
 	}
 
@@ -163,7 +165,7 @@ public class LeaseVMAndStartExecution {
     	
     	if(simulate) {
     		try {
-    			if(placementHelper.imageForContainerEverDeployedOnVM(container, vm) == 0){
+    			if(!placementHelper.imageForContainerEverDeployedOnVM(container, vm)){
                     Thread.sleep(container.getDeployTime());
     			}
                 Thread.sleep(container.getStartupTime()); 

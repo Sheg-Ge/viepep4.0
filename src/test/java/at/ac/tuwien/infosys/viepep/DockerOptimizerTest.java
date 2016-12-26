@@ -53,15 +53,27 @@ public class DockerOptimizerTest {
     private void disableLogging() {
 		Logger root = (Logger)LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
 		root.setLevel(Level.WARN);
+		
     }
-    
+
+	//@Ignore
+	@Test
+	public void testEnd2End() throws Exception {
+
+		/* initialize VM and container types */
+		inMemoryCache.clear();
+		vmService.initializeVMs();
+		dockerService.initializeDockerContainers();
+
+	}
+
 	//@Ignore
 	@Test
 	public void testOptimization() throws Exception {
 		disableLogging();
 
-		ViePEPSolverCPLEX.CPLEX_PARAMS.put(IloCplex.IntParam.SolnPoolCapacity, 210000);
-		ViePEPSolverCPLEX.CPLEX_PARAMS.put(IloCplex.IntParam.SolnPoolIntensity, 3);
+		// ViePEPSolverCPLEX.CPLEX_PARAMS.put(IloCplex.IntParam.SolnPoolCapacity, 210000);
+		// ViePEPSolverCPLEX.CPLEX_PARAMS.put(IloCplex.IntParam.SolnPoolIntensity, 2);
 		// cplex.setParam(IloCplex.DoubleParam.SolnPoolAGap, 0.5);
 		// cplex.setParam(IloCplex.IntParam.PopulateLim, 1000);
 		// cplex.setParam(IloCplex.IntParam.NodeLim, 0);
@@ -72,8 +84,8 @@ public class DockerOptimizerTest {
 		int numIterations = 50;
 		List<Integer> numsRequests = Arrays.asList(1, 3, 10);
 
-		for(int numRequests : numsRequests) {
-			System.out.println("Number of requests: " + numRequests);
+	//	for(int numRequests : numsRequests) {
+		//	System.out.println("Number of requests: " + numRequests);
 			int currentIteration = 1;
 			int numSuccessful = 0;
 			double minObjective = Double.MAX_VALUE;
@@ -88,13 +100,13 @@ public class DockerOptimizerTest {
 				dockerService.initializeDockerContainers();
 	
 				/* define process type */
-				Integer[] workflowTypeIDs = new Integer[]{1, 1, 1, 1, 1, 1, 1};
+				Integer[] workflowTypeIDs = new Integer[]{1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 				WorkflowElements workflows1 = TestWorkflows.constructTestWorkflows(workflowTypeIDs);
 	
 				/* request enactment */
-				for(int i = 0; i < numRequests; i ++) {
+			//	for(int i = 0; i < numRequests; i ++) {
 					workflowService.addWorkflow(workflows1);
-				}
+			//	}
 	
 				/* perform optimization */
 				long t1 = System.currentTimeMillis();
@@ -125,7 +137,7 @@ public class DockerOptimizerTest {
 			System.out.println("Min/max objective: " + minObjective + "/" + maxObjective);
 			System.out.println("Average duration: " + (totalDuration / (double)currentIteration));
 			Assert.assertFalse(vmService.getStartedAndScheduledForStartVMs().isEmpty());
-		}
+	//	}
 
 		/* finalize test */
 		System.out.println("Done.");

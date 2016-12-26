@@ -59,8 +59,10 @@ public class ServiceExecutionController{
     	final Map<DockerContainer, List<ProcessStep>> containerProcessStepsMap = new HashMap<>();
 
         for (final ProcessStep processStep : processSteps) {
-            processStep.setStartDate(new Date());
-            DockerContainer scheduledAt = processStep.getScheduledAtContainer();
+//        	if(processStep.getStartDate()==null){
+//        		processStep.setStartDate(new Date());   
+//        	}
+        	DockerContainer scheduledAt = processStep.getScheduledAtContainer();
             if (!containerProcessStepsMap.containsKey(scheduledAt)) {
             	containerProcessStepsMap.put(scheduledAt, new ArrayList<>());
             }

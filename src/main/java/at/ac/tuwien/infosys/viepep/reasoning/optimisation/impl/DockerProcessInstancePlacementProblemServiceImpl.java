@@ -10,7 +10,12 @@ import at.ac.tuwien.infosys.viepep.reasoning.impl.ReasoningImpl;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.ProcessInstancePlacementProblemService;
 import ilog.concert.IloException;
+import ilog.concert.IloLinearNumExpr;
+import ilog.concert.IloLinearNumExprIterator;
+import ilog.concert.IloNumExpr;
 import ilog.concert.IloNumVar;
+import ilog.concert.IloRange;
+import ilog.cplex.CpxNumVar;
 import ilog.cplex.IloCplex;
 import ilog.cplex.IloCplex.BooleanParam;
 import ilog.cplex.IloCplex.DoubleParam;
@@ -19,8 +24,10 @@ import ilog.cplex.IloCplex.LongParam;
 import ilog.cplex.IloCplex.StringParam;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.javailp.*;
+import static at.ac.tuwien.infosys.viepep.Constants.START_EPOCH;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.*;
 
@@ -55,9 +62,11 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
     private static final double OMEGA_S_C_VALUE = 0.01;
 //    private static final double TAU_T_1_WEIGHT = 0.00000000001;
     private static final double OMEGA_DEPLOY_D_VALUE = 0.001; //CHECK only a weight for actual deploy value
-    private static final double DEADLINE_WEIGHT = 0.001;
+    private static final double DEADLINE_WEIGHT = 1;
 
     private Date tau_t;
+    private Date tau_t_startepoch;
+    
     private static final long EPSILON = ReasoningImpl.MIN_TAU_T_DIFFERENCE_MS / 1000;
     private static final long TIMESLOT_DURATION = 60 * 1000 * 1; //timeslot duration is minimum 1 minute
 //    public static final long LEASING_DURATION = 60 * 1000 * 5; //BTU timeslot duration is minimum 5 minutes
@@ -70,8 +79,12 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
     private long M = 10;
     private long N = 100;
 
-    private static long CONTAINER_DEPLOY_TIME = 30000L; //30
-    private static long VM_STARTUP_TIME = 60000L; //60
+    @Value("${dockercontainer.deploy.time}")
+    private long CONTAINER_DEPLOY_TIME; //30000L
+
+    @Value("${virtualmachine.startup.time}")
+    private long VM_STARTUP_TIME; //60000L
+
 
 //    private Map<Integer, Integer> currentVMUsage = new HashMap<>();
 
@@ -82,25 +95,15 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
     private Map<String, List<ProcessStep>> runningSteps;
     private Problem problem;
 
-    public void initializeParameters() {
-//        V = cacheVirtualMachineService.getVMTypes().size();
-//        for (VMType vmType : cacheVirtualMachineService.getVMTypes()) { //set K, max 1 iteration
-//            K = cacheVirtualMachineService.getVMs(vmType).size();
-            VM_STARTUP_TIME = cacheVirtualMachineService.getAllVMs().get(0).getStartupTime();
-//            break;
-//        }
-        
-//        ST = cacheDockerService.getDockerImages().size();
-//        for (DockerImage dockerImage : cacheDockerService.getDockerImages()) { //set C, max 1 iteration
-//            C = cacheDockerService.getDockerContainers(dockerImage).size();
-            CONTAINER_DEPLOY_TIME = cacheDockerService.getAllDockerContainers().get(0).getDeployTime();
-//            break;
-//        }
-    }
-
     public Result optimize(Date tau_t) {
+    	tau_t_startepoch = new Date(((tau_t.getTime() / 1000) - START_EPOCH) * 1000);
+    	System.out.println(tau_t_startepoch);
+    	System.out.println(tau_t_startepoch.getTime());
 
-        //cleanups
+    	System.out.println("CONTAINER DEPLOY TIME: " + CONTAINER_DEPLOY_TIME);
+    	System.out.println("VM STARTUP TIME: " + VM_STARTUP_TIME);
+
+    	//cleanups
         synchronized (SYNC_OBJECT) {
             placementHelper.setFinishedWorkflows();
 
@@ -110,7 +113,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
             allRunningSteps = null;
             runningSteps = new HashMap<>();
             
-            getNextWorkflowInstances();
+            getRunningWorkflowInstances();
             getAllNextStepsAsList();
 
             getAllRunningSteps();
@@ -133,6 +136,8 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
         factory.setParameter(Solver.VERBOSE, 0);
         factory.setParameter(Solver.TIMEOUT, 600); // set timeout to 600 seconds
 
+        Solver solver = new ViePEPSolverCPLEX(); // factory.get();
+
         log.info(printCollections());
 
         problem = new Problem();
@@ -153,7 +158,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
         addConstraint_37(problem);
         addConstraint_38(problem);
         addConstraint_39(problem);
-        addConstraint_40(problem);
+        addConstraint_40(problem); //each vm hosts max one container type (image/servicetype)
         addConstraint_41(problem);
         addConstraint_42(problem);
         addConstraint_43(problem);
@@ -163,12 +168,21 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
         addConstraint_47(problem);
         addConstraint_48(problem);
         addConstraint_49(problem);
+        addConstraint_50(problem);
+      
 
-
-
-        Solver solver = new ViePEPSolverCPLEX(); // factory.get();
         //Solver solver = factory.get();
         if (useCPLEX) {
+
+        	// add hook for constraint 41
+            ((SolverCPLEX) solver).addHook(new SolverCPLEX.Hook() {
+                @Override
+                public void call(IloCplex cplex, Map<Object, IloNumVar> varToNum) {
+                	addConstraint_41_hook(cplex);
+                }
+            });
+
+        	// add hook for config properties
             ((SolverCPLEX) solver).addHook(new SolverCPLEX.Hook() {
                 @Override
                 public void call(IloCplex cplex, Map<Object, IloNumVar> varToNum) {
@@ -179,6 +193,9 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
                         /* set optimality gap to ensure we get an optimal solution */
                         cplex.setParam(IloCplex.DoubleParam.EpGap, 0);
                         cplex.setParam(IloCplex.DoubleParam.EpAGap, 0);
+                        cplex.setParam(IloCplex.Param.Emphasis.MIP, 2);
+                        // cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 0.000000001);
+                        cplex.setParam(IloCplex.Param.Simplex.Tolerances.Optimality, 0.000000001);
 
                         //defaults:
 //                        cplex.getParam(IloCplex.DoubleParam.EpGap) 0.0
@@ -196,21 +213,6 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 //                        cplex.getParam(IloCplex.IntParam.SolnPoolCapacity) 2100000000
 //                        cplex.getParam(IloCplex.IntParam.SolnPoolIntensity) 0
 
-//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.EpGap) " + cplex.getParam(IloCplex.DoubleParam.EpGap));
-//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.EpAGap) " + cplex.getParam(IloCplex.DoubleParam.EpAGap));
-//                        System.out.println("cplex.getParam(IloCplex.IntParam.NodeLim) " + cplex.getParam(IloCplex.IntParam.NodeLim));
-//                        System.out.println("cplex.getParam(IloCplex.IntParam.IntSolLim) " + cplex.getParam(IloCplex.IntParam.IntSolLim));
-//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.TreLim) " + cplex.getParam(IloCplex.DoubleParam.TreLim));
-//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.TiLim) " + cplex.getParam(IloCplex.DoubleParam.TiLim));
-//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.ItLim) " + cplex.getParam(IloCplex.IntParam.ItLim));
-//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.CutUp) " + cplex.getParam(IloCplex.DoubleParam.CutUp));
-//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.CutLo) " + cplex.getParam(IloCplex.DoubleParam.CutLo));
-//                        System.out.println("cplex.getParam(IloCplex.IntParam.PopulateLim) " + cplex.getParam(IloCplex.IntParam.PopulateLim));
-//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.SolnPoolAGap) " + cplex.getParam(IloCplex.DoubleParam.SolnPoolAGap));
-//                        System.out.println("cplex.getParam(IloCplex.DoubleParam.SolnPoolGap) " + cplex.getParam(IloCplex.DoubleParam.SolnPoolGap));
-//                        System.out.println("cplex.getParam(IloCplex.IntParam.SolnPoolCapacity) " + cplex.getParam(IloCplex.IntParam.SolnPoolCapacity));
-//                        System.out.println("cplex.getParam(IloCplex.IntParam.SolnPoolIntensity) " + cplex.getParam(IloCplex.IntParam.SolnPoolIntensity));
-
                     } catch (IloException e) {
                         e.printStackTrace();
                     }
@@ -219,7 +221,6 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
         }
 
         Result solved = solver.solve(problem);
-
 
 
         int i = 0;
@@ -239,6 +240,10 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 //            
             getAllObjectives(solved);
 //            getAllSolvedConstraints(solved, problem);
+            
+            for(int j=0; j<10; j++){
+            	getSolvedConstraint(solved, problem, j);
+            }
         }
 
 
@@ -340,7 +345,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
         }
 
         //DS: for penalty costs //term 2 and term 6
-        for (WorkflowElement workflowInstance : getNextWorkflowInstances()) {
+        for (WorkflowElement workflowInstance : getRunningWorkflowInstances()) {
         	//Term2
         	String executionTimeViolation = placementHelper.getExecutionTimeViolationVariable(workflowInstance);
             linear.add(DEADLINE_WEIGHT * placementHelper.getPenaltyCostPerQoSViolationForProcessInstance(workflowInstance), executionTimeViolation);
@@ -379,15 +384,30 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
         //Term 3
 		for (VirtualMachine vm : cacheVirtualMachineService.getAllVMs()) {
 			for (DockerContainer dockerContainer : cacheDockerService.getAllDockerContainers()) {
-				if (placementHelper.imageForContainerEverDeployedOnVM(dockerContainer, vm) == 0) {
+				if (!placementHelper.imageForContainerEverDeployedOnVM(dockerContainer, vm)) {
 					String decisionVariableA = placementHelper.getDecisionVariableA(dockerContainer, vm);
 					linear.add(dockerContainer.getDeployCost() * OMEGA_DEPLOY_D_VALUE, decisionVariableA);
 //		            System.out.println("******************************** TERM 3 deployCostForContainer*Omega: "+ (dockerContainer.getDeployCost() * OMEGA_DEPLOY_D_VALUE) + " VarA "+ decisionVariableA);
-
 				}
 			}
 
 		}
+//		// TODO!!
+//		for (DockerImage image : cacheDockerService.getDockerImages()) {
+//            for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()) {
+//            	Linear tmpLinear = new Linear();
+//            	for (DockerContainer dockerContainer : cacheDockerService.getDockerContainers(image)) {
+//    				if (!placementHelper.imageForContainerEverDeployedOnVM(dockerContainer, vm)) {
+//    					String decisionVariableA = placementHelper.getDecisionVariableA(dockerContainer, vm);
+//                		tmpLinear.add(1, decisionVariableA);
+//
+//    				}
+//                }
+//            	// tmpLinear contains the sum of all docker containers that provide image
+//
+//				linear.add(dockerContainer.getDeployCost() * OMEGA_DEPLOY_D_VALUE, decisionVariableA);
+//            }
+//        }
         
         //Term 4
         for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
@@ -404,7 +424,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 
         }
 
-        //Term 5
+//        //Term 5
         for (VirtualMachine vm : cacheVirtualMachineService.getAllVMs()) {
 			for (DockerContainer dockerContainer : cacheDockerService.getAllDockerContainers()) {
 				String decisionVariableA = placementHelper.getDecisionVariableA(dockerContainer, vm);
@@ -429,7 +449,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
      * @param problem to be solved
      */
     private void addConstraint_2(Problem problem) {
-        final List<WorkflowElement> nextWorkflowInstances = getNextWorkflowInstances();
+        final List<WorkflowElement> nextWorkflowInstances = getRunningWorkflowInstances();
         for (final WorkflowElement workflowInstance : nextWorkflowInstances) {
             Linear linear = new Linear();
             String executionTimeWorkflowVariable = placementHelper.getExecutionTimeVariable(workflowInstance);
@@ -444,7 +464,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 //                maxRemainingExecutionTime = Math.max(maxRemainingExecutionTime, getRemainingExecutionTimeAndDeployTimes(runningStep));
 //            }
 
-            long rhs = workflowInstance.getDeadline() / 1000; //- maxRemainingExecutionTime / 1000;
+            long rhs = (workflowInstance.getDeadline() / 1000) - START_EPOCH; //- maxRemainingExecutionTime / 1000;
             problem.add(linear, "<=", rhs);
             
 //            System.out.println("******************************** CONSTRAINT 2 for workflowelement: " + workflowInstance.getName() +" :: ");
@@ -462,7 +482,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
     private void addConstraint_3(Problem problem) {
         Linear linear = new Linear();
         linear.add(1, "tau_t_1");
-        problem.add(linear, ">=", tau_t.getTime() / 1000 + EPSILON); //+ TIMESLOT_DURATION / 1000);
+        problem.add(linear, ">=", tau_t_startepoch.getTime() / 1000 + EPSILON); //+ TIMESLOT_DURATION / 1000);
         problem.setVarUpperBound("tau_t_1", Integer.MAX_VALUE);
     }
 
@@ -470,7 +490,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
      * @param problem to be solved
      */
     private void addConstraint_4_to_11(Problem problem) {
-        for (WorkflowElement workflowInstance : getNextWorkflowInstances()) {
+        for (WorkflowElement workflowInstance : getRunningWorkflowInstances()) {
             List<String> nextStepIds = new ArrayList<>();
             for (Element element : nextSteps.get(workflowInstance.getName())) {
                 nextStepIds.add(element.getName());
@@ -906,7 +926,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
     			int tau_t_1_UpperBound = Integer.MAX_VALUE;
     			String a_times_t1 = placementHelper.getATimesT1(container, vm); 
                 String decisionVariableY = placementHelper.getDecisionVariableY(vm);
-    			long tau_t_0 = tau_t.getTime() / 1000;
+    			long tau_t_0 = tau_t_startepoch.getTime() / 1000;
     			long d_v_k = placementHelper.getRemainingLeasingDuration(tau_t, vm) / 1000;
             	int b_v_k = placementHelper.getBeta(vm);
             	long BTU = placementHelper.getBTU(vm) / 1000;
@@ -974,7 +994,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 	
 	    				String decisionVariableX = placementHelper.getDecisionVariableX(step, container);
 	    				String a_times_x = placementHelper.getAtimesX(step, container, vm); 
-	    				int variableZ = placementHelper.imageForStepEverDeployedOnVM((ProcessStep)step, vm);
+	    				int variableZ = placementHelper.imageForStepEverDeployedOnVM((ProcessStep)step, vm) ? 1 : 0;
 	    				long remainingExecutionTime = step.getRemainingExecutionTime(tau_t) / 1000;
 	    				long serviceDeployTime = container.getDeployTime() / 1000;
     				
@@ -1127,46 +1147,114 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
         }
     }
     
-    private void addConstraint_41(Problem problem) {
-        for (ProcessStep step : getAllRunningSteps()) {
-            String containerName = step.getScheduledAtContainer().getName();
-            
-            for(DockerContainer container : cacheDockerService.getDockerContainers(step)){
-                String variableX = placementHelper.getDecisionVariableX(step, container);
-                Linear linear = new Linear();
-                linear.add(1, variableX);
-                
-                boolean runsAt = containerName.equals(container.getName());
-                if (runsAt) {
-                	problem.add(linear, Operator.EQ, 1);
-                	
-                	for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()) {
-                		String variableA = placementHelper.getDecisionVariableA(container, vm);
+    
+    private CpxNumVar getCplexVariableByName(IloCplex cplex, String name) {
+    	@SuppressWarnings("unchecked")
+		Iterator<Object> iter = (Iterator<Object>)cplex.iterator();
+    	while(iter.hasNext()) {
+    		Object o = iter.next();
+    		if(o instanceof IloRange) {
+        		try {
+            		IloNumExpr numExpr = ((IloRange)o).getExpr();
+            		if(numExpr instanceof IloLinearNumExpr) {
+            			IloLinearNumExpr linNumExpr = (IloLinearNumExpr) numExpr;
+            			IloLinearNumExprIterator iter1 = linNumExpr.linearIterator();
+            			while(iter1.hasNext()) {
+            				Object var = iter1.next();
+                    		if(var instanceof CpxNumVar) {
+                    			CpxNumVar numVar = (CpxNumVar)var;
+                    			if(name.equals(numVar.getName())) {
+                    				return numVar;
+                    			}
+                    		} else {
+                    			System.out.println("Unexpected type 1 " + var.getClass());
+                    		}
+            			}
+            		} else {
+            			System.out.println("Unexpected type 2 " + numExpr.getClass());
+            		}
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+    		}
+    	}
+    	return null;
+    }
 
-                		Linear linear2 = new Linear();
-                		linear2.add(1, variableA);
+	private void addConstraint_41(Problem problem) {
 
-                		boolean deployedAt = container.getVirtualMachine().getName().equals(vm.getName());
-                		if(deployedAt) {
-                			problem.add(linear2, Operator.EQ, 1);
-                		} else {
-                			problem.add(linear2, Operator.EQ, 0);
-                		}
-                		problem.setVarUpperBound(variableA, 1);
-                        problem.setVarLowerBound(variableA, 0);
-                	}
-                }
-                else {
-                    problem.add(linear, Operator.EQ, 0);
-                }
-                problem.setVarUpperBound(variableX, 1);
-                problem.setVarLowerBound(variableX, 0);
-            }
-        }
+		for (ProcessStep step : getAllRunningSteps()) {
+			Linear linear = new Linear(); 
+			for (DockerContainer container : cacheDockerService.getDockerContainers(step)) {
+				String variableX = placementHelper.getDecisionVariableX(step, container);
+				linear.add(1, variableX);
+			}
+            problem.add(linear, Operator.EQ, 1);
+		}
+	}
+
+	private void addConstraint_41_hook(IloCplex cplex) {
+
+		for (ProcessStep step : getAllRunningSteps()) {
+			// get current VM for this step
+			VirtualMachine vm = step.getScheduledAtContainer().getVirtualMachine();
+
+			for (DockerContainer container : cacheDockerService.getDockerContainers(step)) {
+				String variableX = placementHelper.getDecisionVariableX(step, container);
+				CpxNumVar variableXObj = getCplexVariableByName(cplex, variableX);
+				if(variableXObj == null) {
+					System.out.println("!!!!!! " + variableXObj + " - " + step + " - " + container);
+					System.out.println(variableX);
+				}
+				String variableA = placementHelper.getDecisionVariableA(container, vm);
+				CpxNumVar variableAObj = getCplexVariableByName(cplex, variableA);
+				try {
+					cplex.ifThen(cplex.eq(1, variableXObj), cplex.eq(1, variableAObj));
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			}
+		}
+
+//        for (ProcessStep step : getAllRunningSteps()) {
+//            String containerName = step.getScheduledAtContainer().getName();
+//            
+//            for(DockerContainer container : cacheDockerService.getDockerContainers(step)){
+//                String variableX = placementHelper.getDecisionVariableX(step, container);
+//                Linear linear = new Linear();
+//                linear.add(1, variableX);
+//                
+//                boolean runsAt = containerName.equals(container.getName());
+//                if (runsAt) {
+//                	problem.add(linear, Operator.EQ, 1);
+//                	
+//                	for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()) {
+//                		String variableA = placementHelper.getDecisionVariableA(container, vm);
+//
+//                		Linear linear2 = new Linear();
+//                		linear2.add(1, variableA);
+//
+//                		boolean deployedAt = container.getVirtualMachine().getName().equals(vm.getName());
+//                		if(deployedAt) {
+//                			problem.add(linear2, Operator.EQ, 1);
+//                		} else {
+//                			problem.add(linear2, Operator.EQ, 0);
+//                		}
+//                		problem.setVarUpperBound(variableA, 1);
+//                        problem.setVarLowerBound(variableA, 0);
+//                	}
+//                }
+//                else {
+//                    problem.add(linear, Operator.EQ, 0);
+//                }
+//                problem.setVarUpperBound(variableX, 1);
+//                problem.setVarLowerBound(variableX, 0);
+//            }
+//        }
     }
 
     private void addConstraint_42(Problem problem) {
-    	for (ProcessStep step : getAllNextStepsAsList()) {
+    	for (ProcessStep step : getNextAndRunningSteps()) {
             for(DockerContainer container : cacheDockerService.getDockerContainers(step)){
                 String variableX = placementHelper.getDecisionVariableX(step, container);
                 Linear linear = new Linear();
@@ -1278,7 +1366,18 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
     }
 
     private void addConstraint_49(Problem problem) {
-    	for (WorkflowElement workflowInstance : getNextWorkflowInstances()) {
+    	for (VMType vmType : cacheVirtualMachineService.getVMTypes()) {
+            String gamma = placementHelper.getGammaVariable(vmType);
+            Linear linear = new Linear();
+            linear.add(1, gamma);
+            problem.add(linear, ">=", 0);
+            problem.setVarType(gamma, VarType.INT);
+            problem.setVarUpperBound(gamma, Integer.MAX_VALUE);
+            problem.setVarLowerBound(gamma, 0);            
+    	}
+    }
+    private void addConstraint_50(Problem problem) {
+    	for (WorkflowElement workflowInstance : getRunningWorkflowInstances()) {
             Linear linear = new Linear();
             String executionTimeViolation = placementHelper.getExecutionTimeViolationVariable(workflowInstance);
             linear.add(1, executionTimeViolation);
@@ -1406,7 +1505,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
     /**
      * @return a list of workflow instances
      */
-    public List<WorkflowElement> getNextWorkflowInstances() {
+    public List<WorkflowElement> getRunningWorkflowInstances() {
         if (nextWorkflowInstances == null) {
             nextWorkflowInstances = Collections.synchronizedList(new ArrayList<WorkflowElement>(cacheWorkflowService.getRunningWorkflowInstances()));
         }
@@ -1417,7 +1516,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
     	List<ProcessStep> allNextStepsAsList = new ArrayList<>();
 
         if(nextSteps.isEmpty()){
-        	for (WorkflowElement workflow : getNextWorkflowInstances()) {
+        	for (WorkflowElement workflow : getRunningWorkflowInstances()) {
         		List<ProcessStep> nextStepsOfWorkflow = Collections.synchronizedList(new ArrayList<ProcessStep>(placementHelper.getNextSteps(workflow.getName())));
                 nextSteps.put(workflow.getName(), nextStepsOfWorkflow);
             }
@@ -1445,7 +1544,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
     public List<ProcessStep> getAllRunningSteps() {
         if (allRunningSteps == null) {
             allRunningSteps = new ArrayList<>();
-            List<WorkflowElement> nextWorkflowInstances = getNextWorkflowInstances();
+            List<WorkflowElement> nextWorkflowInstances = getRunningWorkflowInstances();
             for (Element workflowInstance : nextWorkflowInstances) {
                 List<ProcessStep> runningStepsForWorkflowInstanceID = getRunningStepsForWorkflow(workflowInstance.getName());
                 allRunningSteps.addAll(runningStepsForWorkflowInstanceID);
@@ -1662,23 +1761,23 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
     }
     
 	private String getAllObjectives(Result optimize) {
-		log.debug("\n Term 1 \n");
+		System.out.println("\n Term 1 \n");
 		double sum1 = 0;
 
 		for (VMType vmType : cacheVirtualMachineService.getVMTypes()) {
 			String gamma = placementHelper.getGammaVariable(vmType);
 			double c = optimize.get(gamma).doubleValue();
 			sum1 += vmType.getCosts() * c;
-			log.debug("Sum just increased for vmType: " + vmType);
-			log.debug("vmCosts are: " + vmType.getCosts() + ", "+gamma +": " + c + " --> cost*gamma = "+ vmType.getCosts() * c);
+			System.out.println("Sum just increased for vmType: " + vmType);
+			System.out.println("vmCosts are: " + vmType.getCosts() + ", "+gamma +": " + c + " --> cost*gamma = "+ vmType.getCosts() * c);
 		}
 
-		log.debug("Value: " + sum1);
+		System.out.println("Value: " + sum1);
 
-		log.debug("\n Term 2 \n");
+		System.out.println("\n Term 2 \n");
 		double sum2 = 0;
 		double sum6 = 0;
-		for (WorkflowElement workflowInstance : getNextWorkflowInstances()) {
+		for (WorkflowElement workflowInstance : getRunningWorkflowInstances()) {
 			// Term2
 			String executionTimeViolation = placementHelper
 					.getExecutionTimeViolationVariable(workflowInstance);
@@ -1704,26 +1803,26 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 			}
 		}
 
-		log.debug("Value: " + sum2);
+		System.out.println("Value: " + sum2);
 
-		log.debug("\n Term 3 \n");
+		System.out.println("\n Term 3 \n");
 		double sum3 = 0;
 
-		// Term 3
-		for (VirtualMachine vm : cacheVirtualMachineService.getAllVMs()) {
-			for (DockerContainer dockerContainer : cacheDockerService.getAllDockerContainers()) {
-				if (placementHelper.imageForContainerEverDeployedOnVM(dockerContainer, vm) == 0) {
-					String decisionVariableA = placementHelper.getDecisionVariableA(dockerContainer, vm);
-					int a = toInt(optimize.get(decisionVariableA));
-					sum3 += dockerContainer.getDeployCost() * OMEGA_DEPLOY_D_VALUE * a;
-				}
-			}
+//		// Term 3
+//		for (VirtualMachine vm : cacheVirtualMachineService.getAllVMs()) {
+//			for (DockerContainer dockerContainer : cacheDockerService.getAllDockerContainers()) {
+//				if (placementHelper.imageForContainerEverDeployedOnVM(dockerContainer, vm) == 0) {
+//					String decisionVariableA = placementHelper.getDecisionVariableA(dockerContainer, vm);
+//					int a = toInt(optimize.get(decisionVariableA));
+//					sum3 += dockerContainer.getDeployCost() * OMEGA_DEPLOY_D_VALUE * a;
+//				}
+//			}
+//
+//		}
+//
+//		System.out.println("Value: " + sum3);
 
-		}
-
-		log.debug("Value: " + sum3);
-
-		log.debug("\n Term 4 \n");
+		System.out.println("\n Term 4 \n");
 		double sum4 = 0;
 
 		// Term 4
@@ -1736,9 +1835,9 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 			sum4 += OMEGA_F_R_VALUE * fr;
 		}
 
-		log.debug("Value: " + sum4);
+		System.out.println("Value: " + sum4);
 
-		log.debug("\nTerm 5 \n");
+		System.out.println("\nTerm 5 \n");
 		double sum5 = 0;
 		// Term 5
 		for (VirtualMachine vm : cacheVirtualMachineService.getAllVMs()) {
@@ -1753,10 +1852,10 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 			}
 		}
 		
-		log.debug("Value: " + sum5);
+		System.out.println("Value: " + sum5);
 
-		log.debug("\n Term 6 \n");
-		log.debug("Value: " + sum6);
+		System.out.println("\n Term 6 \n");
+		System.out.println("Value: " + sum6);
 
 		
 //		System.out.println("_______________ ALL CONSTRAINTS ______________________");
@@ -1825,6 +1924,28 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 			System.out.println("//// RHS result = " + constraint.getRhs());
 			System.out.println("    ********************************************************** Alltogether: " + lhsSum + operator + constraint.getRhs());
 		}
+		return "";
+	}
+	
+	private String getSolvedConstraint(Result result, Problem problem, int constraintNumber) {
+		Constraint constraint = problem.getConstraints().get(constraintNumber);
+		System.out.println("LHS Variables : ");
+		double lhsSum = 0;
+		for (int i = 0; i < constraint.getLhs().size(); i++) {
+			double coefficient = constraint.getLhs().get(i).getCoefficient()
+					.doubleValue();
+			Object variable = constraint.getLhs().get(i).getVariable();
+
+			System.out.print(coefficient + " * " + variable + " ("
+					+ result.get(variable) + ") + ");
+			lhsSum += (coefficient * result.get(variable).doubleValue());
+		}
+		String operator = constraint.getOperator().toString();
+
+		System.out.println("//// RHS result = " + constraint.getRhs());
+		System.out.println("    ********************************************************** Alltogether: "
+				+ lhsSum + operator + constraint.getRhs());
+
 		return "";
 	}
 }

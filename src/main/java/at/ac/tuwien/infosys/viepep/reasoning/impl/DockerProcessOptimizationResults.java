@@ -80,7 +80,7 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
 
         List<WorkflowElement> allRunningWorkflowInstances = cacheWorkflowService.getRunningWorkflowInstances();
         stringBuilder2.append("------------------------ Tasks running ---------------------------\n");
-        List<ProcessStep> nextSteps = placementHelper.getNotStartedUnfinishedSteps();
+        List<ProcessStep> nextSteps = placementHelper.getRunningOrNotStartedSteps();
 
         getRunningTasks(optimize, tau_t, vmsToStart, containersToDeploy, scheduledForExecution, y, x, a, stringBuilder2, vMs, allRunningWorkflowInstances, nextSteps);
 
@@ -113,10 +113,10 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
         for (ProcessStep processStep : scheduledForExecution) {
             stringBuilder2.append("Task-TODO: ").append(processStep).append("\n");
         }
-        stringBuilder2.append("------------------------------------------------------------------\n");
+        stringBuilder2.append("----------------------------- Containers to deploy -------------------------------------\n");
 
         for (DockerContainer container : containersToDeploy) {
-            stringBuilder2.append("Containers To Deploy: ").append(container).append("\n");
+            stringBuilder2.append(container).append("\n");
         }
         stringBuilder2.append("------------------------------------------------------------------\n");
 
@@ -140,8 +140,12 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
 	
 
 
-	private void getRunningTasks(Result optimize, Date tau_t, List<VirtualMachine> vmsToStart, List<DockerContainer> containersToDeploy, List<ProcessStep> scheduledForExecution, List<String> y, List<String> c, List<String> a, StringBuilder stringBuilder2, List<VirtualMachine> vMs, List<WorkflowElement> allWorkflowInstances, List<ProcessStep> nextSteps) {
-        for (Element workflow : allWorkflowInstances) {
+	private void getRunningTasks(Result optimize, Date tau_t, List<VirtualMachine> vmsToStart,
+			List<DockerContainer> containersToDeploy, List<ProcessStep> scheduledForExecution,
+			List<String> y, List<String> x, List<String> a, StringBuilder stringBuilder2, List<VirtualMachine> vMs,
+			List<WorkflowElement> allRunningWorkflowInstances, List<ProcessStep> nextSteps) {
+
+        for (Element workflow : allRunningWorkflowInstances) {
             List<ProcessStep> runningSteps = placementHelper.getRunningProcessSteps(workflow.getName());
             for (ProcessStep runningStep : runningSteps) {
                 if(runningStep.getScheduledAtContainer() != null) {
@@ -156,12 +160,11 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
                     continue;
                 }
                 List<DockerContainer> containers = cacheDockerService.getDockerContainers(processStep);
-                processXValues(optimize, tau_t, containersToDeploy, scheduledForExecution, c, containers, processStep);
+                processXValues(optimize, tau_t, containersToDeploy, scheduledForExecution, x, containers, processStep);
             }
 
         }
-        
-        
+
         for (DockerContainer container : containersToDeploy) {
         	log.debug("PROCESSING A VALUES FOR CONTAINER: " + container);
             processAYValues(optimize, tau_t, vmsToStart, scheduledForExecution, y, a, vMs, container);
@@ -169,19 +172,22 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
     }
 
     
-    private void processXValues(Result optimize, Date tau_t, List<DockerContainer> containersToDeploy, List<ProcessStep> scheduledForExecution, List<String> c, List<DockerContainer> containers, ProcessStep processStep) {
+    private void processXValues(Result optimize, Date tau_t, List<DockerContainer> containersToDeploy, 
+    		List<ProcessStep> scheduledForExecution, List<String> x, List<DockerContainer> containers, ProcessStep processStep) {
     	for (DockerContainer container : containers) {
         	String x_s_c = placementHelper.getDecisionVariableX(processStep, container);
         	
             Number x_s_c_number = optimize.get(x_s_c);
+            System.out.println("x_s_c_number " + x_s_c_number + " - " + x_s_c);
 
-            if (!c.contains(x_s_c)) {
-                c.add(x_s_c);
+            if (!x.contains(x_s_c)) {
+                x.add(x_s_c);
                 if(x_s_c_number != null) {
                 	int x_s_c_number_int = toInt(x_s_c_number);
 	                if (x_s_c_number_int == 1) {
 	                	containersToDeploy.add(container);
 //	                	log.debug("X S C WAS NOT NULL for " + x_s_c + " CONTAINERS TO DEPLOY WAS UPDATED");
+	                	
 	
 	                }
 //	            	log.debug("X S C WAS NOT NULL for " + x_s_c + "Value was: " + x_s_c_number_int);
@@ -195,17 +201,30 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
                 continue;
             }
 
-            if (toInt(x_s_c_number) == 1 && !scheduledForExecution.contains(processStep) && processStep.getStartDate() == null) {
-                processStep.setScheduledForExecution(true, tau_t, container);
-                scheduledForExecution.add(processStep);
-                if (!containersToDeploy.contains(container)) {
-                    containersToDeploy.add(container);
-                }
+            if (toInt(x_s_c_number) == 1 && !scheduledForExecution.contains(processStep)){ 
+            	if(processStep.getStartDate() != null) {
+            		System.out.println("Reschedule: \nProcessStep: " + processStep +"\nContainer: "+container);
+            		processStep.rescheduledExecution(container);
+                    scheduledForExecution.add(processStep);
+                    if (!containersToDeploy.contains(container)) {
+                        containersToDeploy.add(container);
+                    }
+            	}else{
+            		processStep.setScheduledForExecution(true, tau_t, container);
+                    scheduledForExecution.add(processStep);
+                    if (!containersToDeploy.contains(container)) {
+                        containersToDeploy.add(container);
+                    }
+            	}
+            	
+                
             }
         }
     }
     
-    private void processAYValues(Result optimize, Date tau_t, List<VirtualMachine> vmsToStart, List<ProcessStep> scheduledForExecution, List<String> y, List<String> a, List<VirtualMachine> vMs, DockerContainer container) {
+    private void processAYValues(Result optimize, Date tau_t, List<VirtualMachine> vmsToStart, List<ProcessStep> scheduledForExecution,
+    		List<String> y, List<String> a, List<VirtualMachine> vMs, DockerContainer container) {
+
     	for (VirtualMachine virtualMachine : vMs) {
         	String a_c_v = placementHelper.getDecisionVariableA(container, virtualMachine);
             String y_v_k = placementHelper.getDecisionVariableY(virtualMachine);
@@ -230,7 +249,8 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
             if (!a.contains(a_c_v)) {
             	a.add(a_c_v);
             }
-            
+
+            System.out.println("toInt(a_c_v_number) " + a_c_v + " - " + toInt(a_c_v_number) + " - " + a_c_v_number);
             if (a_c_v_number == null || toInt(a_c_v_number) == 0) {
                 continue;
             }

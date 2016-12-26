@@ -16,8 +16,8 @@ public interface ProcessInstancePlacementProblemService {
      */
     Result optimize(Date tau_t);
 
-    void initializeParameters();
-
+//    void initializeParameters();
+    
 //    VirtualMachine getVMById(String vmID);
 
 //    int getZ(String processStepType, int v, int k);

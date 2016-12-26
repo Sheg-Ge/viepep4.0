@@ -54,6 +54,8 @@ public class ViePEPDockerControllerServiceImpl implements ViePEPDockerController
     }
 
     @Override
+    @Deprecated
+    // TODO remove?
     public List<DockerContainer> getDockers(VirtualMachine virtualMachine) {
         List<DockerContainer> dockers = new ArrayList<>();
         DockerClient.ListContainersParam params = DockerClient.ListContainersParam.allContainers(false);

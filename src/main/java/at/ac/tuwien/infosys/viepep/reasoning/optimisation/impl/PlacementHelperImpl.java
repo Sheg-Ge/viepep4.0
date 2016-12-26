@@ -5,6 +5,7 @@ import at.ac.tuwien.infosys.viepep.connectors.impl.ViePEPDockerControllerService
 import at.ac.tuwien.infosys.viepep.connectors.impl.exceptions.CouldNotStopDockerException;
 import at.ac.tuwien.infosys.viepep.database.entities.*;
 import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
+import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerImage;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheVirtualMachineService;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowService;
 import at.ac.tuwien.infosys.viepep.database.services.ElementDaoService;
@@ -99,6 +100,21 @@ public class PlacementHelperImpl implements PlacementHelper {
 
         return processSteps;
     }
+    
+	@Override
+	public List<ProcessStep> getRunningOrNotStartedSteps() {
+		List<ProcessStep> processSteps = new ArrayList<>();
+        for(WorkflowElement workflowElement : cacheWorkflowService.getRunningWorkflowInstances()) {//.getAllWorkflowElements()) {
+            List<Element> flattenWorkflowList = getFlattenWorkflow(new ArrayList<Element>(), workflowElement);
+            for(Element element : flattenWorkflowList) {
+                if(element instanceof ProcessStep && element.getFinishedAt() == null) {
+                	processSteps.add((ProcessStep) element);                		
+                }
+            }
+        }
+
+        return processSteps;
+	}
 
     @Override
     public List<Element> getFlattenWorkflow(List<Element> flattenWorkflowList, Element parentElement) {
@@ -226,7 +242,8 @@ public class PlacementHelperImpl implements PlacementHelper {
         List<ProcessStep> steps = new ArrayList<>();
         for (Element element : elements) {
             if (element instanceof ProcessStep) {
-                if ((((ProcessStep) element).getStartDate() != null || ((ProcessStep) element).getScheduledStartedAt() != null)&& ((ProcessStep) element).getFinishedAt() == null) {
+                if ((((ProcessStep) element).getStartDate() != null || ((ProcessStep) element).getScheduledStartedAt() != null)
+                		&& ((ProcessStep) element).getFinishedAt() == null) {
                 	if (!steps.contains(element)) {
                         steps.add((ProcessStep) element);
                     }
@@ -236,7 +253,6 @@ public class PlacementHelperImpl implements PlacementHelper {
             else {
                 steps.addAll(getRunningProcessSteps(element.getElements()));
             }
-
         }
         return steps;
     }
@@ -552,21 +568,25 @@ public class PlacementHelperImpl implements PlacementHelper {
 		return decisionVariableA + "_times_" + decisionVariableX;
 	}
 	
-	public int imageForStepEverDeployedOnVM(ProcessStep step, VirtualMachine vm) {
+	public boolean imageForStepEverDeployedOnVM(ProcessStep step, VirtualMachine vm) {
 		for(DockerContainer container : vm.getDeployedContainers()){
 			if(step.getServiceType().getName().equals(container.getDockerImage().getServiceName())) {
-				return 1;
+				return true;
 			}
 		}	
-		return 0;
+		return false;
 	}
-	
-	public int imageForContainerEverDeployedOnVM(DockerContainer container, VirtualMachine vm) {
+
+	public boolean imageForContainerEverDeployedOnVM(DockerContainer container, VirtualMachine vm) {
+		return imageEverDeployedOnVM(container.getDockerImage(), vm);
+	}
+
+	public boolean imageEverDeployedOnVM(DockerImage image, VirtualMachine vm) {
 		for(DockerContainer containerOnVm : vm.getDeployedContainers()){
-			if(container.getDockerImage().getServiceName().equals(containerOnVm.getDockerImage().getServiceName())) {
-				return 1;
+			if(image.getServiceName().equals(containerOnVm.getDockerImage().getServiceName())) {
+				return true;
 			}
 		}
-		return 0;
+		return false;
 	}
 }

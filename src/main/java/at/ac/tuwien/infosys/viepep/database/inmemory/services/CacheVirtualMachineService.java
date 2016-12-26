@@ -9,6 +9,7 @@ import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import at.ac.tuwien.infosys.viepep.database.entities.VMType;
@@ -24,17 +25,27 @@ public class CacheVirtualMachineService {
 
     @Autowired
     private InMemoryCacheImpl inMemoryCache;
+    
+    @Value("${virtualmachine.startup.time}")
+    private long defaultStartupTime;
+    @Value("${virtualmachine.deploy.time}")
+    private long defaultDeployTime;
 
-    private int V = 3; //Available types of VM's
-    private int K = 3;
+    @Value("${virtualmachine.vmtypes}")
+    private int V;
+    @Value("${virtualmachine.instances.pervmtype}")
+    private int K;
 
     public void initializeVMs() {
     	try {
     		for (int v = 1; v <= V; v++) {
     			VMType vmType = VMType.fromIdentifier(v);
 
-    			for(int k = 1; k <= K; k++) {            	
-    				inMemoryCache.addVirtualMachine(new VirtualMachine(v + "_" + k, vmType));
+    			for(int k = 1; k <= K; k++) {  
+    				VirtualMachine virtualMachine = new VirtualMachine(v + "_" + k, vmType);
+    				virtualMachine.setStartupTime(defaultStartupTime);
+    				virtualMachine.setDeployTime(defaultDeployTime);
+    				inMemoryCache.addVirtualMachine(virtualMachine);
     			}
     		}
     	}catch(Exception e) {

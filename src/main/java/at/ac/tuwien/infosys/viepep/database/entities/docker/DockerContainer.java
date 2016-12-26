@@ -4,6 +4,9 @@ import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
 
 import javax.persistence.*;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -39,31 +42,24 @@ public class DockerContainer {
 
     private long startupTime;
     private long deployTime;
-    private long deployCost = 3;
+    private long deployCost;
+    
     private String containerID;
 
-    public DockerContainer() {
-    }
-    
-    public void setRunning(boolean r) {
-    	this.running = r;
+    private DockerContainer() {
     }
 
-  
-    
     public DockerContainer(DockerImage dockerImage, DockerConfiguration containerConfiguration) {
         this.containerConfiguration = containerConfiguration;
         this.dockerImage = dockerImage;
-        this.startupTime = 3000;
-        this.deployTime = 30 * 1000;
     }
 
-
-    public DockerContainer(DockerImage dockerImag, long executionTime, DockerConfiguration containerConfiguration) {
+    @Deprecated
+    // TODO remove?
+    public DockerContainer(DockerImage dockerImage, long executionTime, DockerConfiguration containerConfiguration) {
         this.containerConfiguration = containerConfiguration;
         this.startupTime = executionTime;
-        this.deployTime = 30 * 1000;
-        this.dockerImage = dockerImag;
+        this.dockerImage = dockerImage;
     }
 
     public String getName() {

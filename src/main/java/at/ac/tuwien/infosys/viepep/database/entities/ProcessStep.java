@@ -44,6 +44,7 @@ public class ProcessStep extends Element {
 
     @ManyToOne//(cascade = CascadeType.ALL)	//TODO: CHECK
     private VirtualMachine scheduledAtVM;
+    private boolean rescheduled = false;
     
     @ManyToOne//(cascade = CascadeType.ALL)
     private DockerContainer scheduledAtContainer;
@@ -152,6 +153,12 @@ public class ProcessStep extends Element {
         this.scheduledStartedAt = tau_t;
         this.scheduledAtContainer = container;
     }
+    public void rescheduledExecution(DockerContainer container) {
+//        this.isScheduled = true;
+//        this.scheduledStartedAt = tau_t;
+        this.scheduledAtContainer = container;
+        this.rescheduled = true;
+    }
     @Override
     public ProcessStep getLastExecutedElement() {
         return this;
@@ -170,7 +177,14 @@ public class ProcessStep extends Element {
 
         String startDateformat = startDate != null ? formatter.format(startDate) : null;
         String finishedAtformat = finishedAt != null ? formatter.format(finishedAt) : null;
-        String vmName = scheduledAtVM != null ? scheduledAtVM.getName() : null;
+        String vmName = null;
+        if(scheduledAtVM != null){
+        	vmName = scheduledAtVM.getName();
+        }else if(scheduledAtContainer != null){
+        	if(scheduledAtContainer.getVirtualMachine() != null){
+        		vmName = scheduledAtContainer.getVirtualMachine().getName();
+        	}
+        }
         String dockerName = scheduledAtContainer != null ? scheduledAtContainer.getName() : null;
         return "ProcessStep{" +
                 "id='" + id + '\'' +

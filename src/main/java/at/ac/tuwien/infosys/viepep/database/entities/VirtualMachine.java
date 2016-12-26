@@ -6,6 +6,8 @@ import lombok.Setter;
 
 import javax.persistence.*;
 
+import org.springframework.beans.factory.annotation.Value;
+
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -55,8 +57,8 @@ public class VirtualMachine implements Serializable {
 
     private String ipAddress;
     
-    private long startupTime = 60000L;
-    private final long deployTime = 30000L;
+    private long startupTime;
+    private long deployTime;
 
     private Date startedAt;
     private boolean started;

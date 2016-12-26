@@ -59,8 +59,12 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 //    private int internalTypes = 0;
     private long M;
 
-    private static long SERVICE_DEPLOY_TIME = 30000L;
-    private static long VM_STARTUP_TIME = 60000L;
+    @Value("${service.deploy.time}")
+    private long SERVICE_DEPLOY_TIME;
+
+    @Value("${virtualmachine.startup.time}")
+    private long VM_STARTUP_TIME;
+    
     
 //    private Map<Integer, Integer> currentVMUsage = new HashMap<>();
 
@@ -69,16 +73,6 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     private Map<String, List<Element>> nextSteps;
     private Map<String, List<Element>> runningSteps;
     private Problem problem;
-
-    public void initializeParameters() {
-//        V = cacheVirtualMachineService.getVMTypes().size();
-//        for (VMType vmType : cacheVirtualMachineService.getVMTypes()) { //set K, max 1 iteration
-//            K = cacheVirtualMachineService.getVMs(vmType).size();
-            VM_STARTUP_TIME = cacheVirtualMachineService.getAllVMs().get(0).getStartupTime();
-            SERVICE_DEPLOY_TIME = cacheVirtualMachineService.getAllVMs().get(0).getDeployTime();
-//            break;
-//        }
-    }
 
     public Result optimize(Date tau_t) {
 

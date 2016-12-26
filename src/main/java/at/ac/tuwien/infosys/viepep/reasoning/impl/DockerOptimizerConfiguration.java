@@ -19,6 +19,7 @@ public class DockerOptimizerConfiguration {
 
 	@Bean
 	public ProcessInstancePlacementProblemService initializeParameters() {
+		System.out.println("Profile: Docker!!");
 		return new DockerProcessInstancePlacementProblemServiceImpl();
 	}
 

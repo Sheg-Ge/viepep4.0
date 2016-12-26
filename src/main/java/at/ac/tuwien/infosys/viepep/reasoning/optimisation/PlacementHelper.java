@@ -6,6 +6,7 @@ import at.ac.tuwien.infosys.viepep.database.entities.VMType;
 import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
 import at.ac.tuwien.infosys.viepep.database.entities.WorkflowElement;
 import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
+import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerImage;
 
 import java.util.Date;
 import java.util.List;
@@ -86,11 +87,13 @@ public interface PlacementHelper {
 
 	long getBTU(VirtualMachine vm);
 
-	int imageForStepEverDeployedOnVM(ProcessStep step, VirtualMachine vm);
+	boolean imageForStepEverDeployedOnVM(ProcessStep step, VirtualMachine vm);
 
 	void stopDockerContainer(DockerContainer container);
 
-	int imageForContainerEverDeployedOnVM(DockerContainer dockerContainer, VirtualMachine vm);
+	boolean imageForContainerEverDeployedOnVM(DockerContainer dockerContainer, VirtualMachine vm);
+
+	boolean imageEverDeployedOnVM(DockerImage image, VirtualMachine vm);
 
 	long getRemainingSetupTime(DockerContainer scheduledAtContainer, Date tau_t);
 
@@ -99,5 +102,7 @@ public interface PlacementHelper {
 	String getATimesT1(DockerContainer container, VirtualMachine vm);
 
 	String getAtimesX(ProcessStep step, DockerContainer container, VirtualMachine vm);
+
+	List<ProcessStep> getRunningOrNotStartedSteps();
 
 }
