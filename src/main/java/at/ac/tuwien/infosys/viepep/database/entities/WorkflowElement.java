@@ -24,6 +24,8 @@ public class WorkflowElement extends Element {
 	
     private Date arrivedAt;
     private double penalty = 200;
+    private int numberOfLastElements = 0; 
+    private int numberOfFinishedLastElements = 0;
 
     public WorkflowElement(String name, long date, double penalty) {
         this.name = name;
@@ -85,6 +87,7 @@ public class WorkflowElement extends Element {
                 ", arrivedAt='" + arrivedAt + '\'' +
                 ", elements=" + elements +
                 ", deadline=" + deadline +
+                ", numberOfLastElements=" + numberOfLastElements +
                 '}';
     }
 

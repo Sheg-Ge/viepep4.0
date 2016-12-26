@@ -71,6 +71,7 @@ public class CacheWorkflowService {
 	                return nextWorkflow;
 	            }
 	        }
+	        System.out.println("Workflowinstanceid not found: " + workflowInstanceId + " next workflows" + nextWorkflows);
 	        return null;
         }
     }

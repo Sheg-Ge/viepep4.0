@@ -43,7 +43,7 @@ public class WorkflowRestServiceImpl implements WorkflowRestService {
         Date date = new Date();
         log.info("Recieved 1 new WorkflowElement");
         workflowElement.setArrivedAt(date);
-        update(workflowElement);
+        update(workflowElement, workflowElement);
         log.info("add new WorkflowElement: " + workflowElement.toString());
     	cacheWorkflowService.addWorkflowInstance(workflowElement);
         log.info("Done: Add new WorkflowElement: " + workflowElement.toString());
@@ -61,7 +61,7 @@ public class WorkflowRestServiceImpl implements WorkflowRestService {
                 log.info("Recieved new WorkflowElements: " + workflowElement.getWorkflowElements().size());
                 for (WorkflowElement element : workflowElement.getWorkflowElements()) {
                     element.setArrivedAt(date);
-                    update(element);
+                    update(element, element);
                     log.info("add new WorkflowElement: " + element.toString());
                     cacheWorkflowService.addWorkflowInstance(element);
                     log.info("Done: Add new WorkflowElement: " + element.toString());
@@ -73,12 +73,20 @@ public class WorkflowRestServiceImpl implements WorkflowRestService {
         }
     }
 
-    private void update(Element parent) {
+    private void update(Element parent, WorkflowElement wfl) {
         if (parent == null) {
             return;
         }
         List<Element> elements = parent.getElements();
         if (elements == null || elements.size() == 0) {
+        	if(parent instanceof ProcessStep){
+        		if(((ProcessStep)parent).isLastElement() && ((ProcessStep)parent).isHasToBeExecuted()){
+        			int numberOfIterations = howOftenIterated((ProcessStep)parent, 1);
+        			System.out.println("NumberOfITerations set to: " + numberOfIterations + " for ProcessStep " + parent);
+        			wfl.setNumberOfLastElements(wfl.getNumberOfLastElements()+numberOfIterations);
+        			System.out.println("Total number of lastElements to wait: " + wfl.getNumberOfLastElements());
+        		}
+        	}
             return;
         }
         for (Element element : elements) {
@@ -98,11 +106,23 @@ public class WorkflowRestServiceImpl implements WorkflowRestService {
             	((LoopConstruct) element).setNumberOfIterationsToBeExecuted(i);
                // ((LoopConstruct) element).setIterations(1);
             }  //TODO: CHECK just ignore loops? 
-            update(element);
+            update(element, wfl);
         }
     }
 
-    private void setAllOthersToNotExecuted(List<Element> elements, Element ignore) {
+    private int howOftenIterated(Element step, int iter) {
+    	Element parent = step.getParent();
+    	if(parent instanceof WorkflowElement){
+    		return iter;
+    	}else if (parent instanceof LoopConstruct) {
+    		return howOftenIterated(parent, (iter * ((LoopConstruct)parent).getNumberOfIterationsToBeExecuted()));    		
+    	}
+    	else{
+    		return howOftenIterated(parent, iter);
+    	}
+	}
+
+	private void setAllOthersToNotExecuted(List<Element> elements, Element ignore) {
         if (elements == null) {
             return;
         }

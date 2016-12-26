@@ -170,6 +170,17 @@ public class ProcessStep extends Element {
     		numberOfExecutions++;
     	}
     }
+    
+    public VirtualMachine getScheduledAtVM(){
+    	if(scheduledAtVM != null){
+        	return scheduledAtVM;
+        }else if(scheduledAtContainer != null){
+        	if(scheduledAtContainer.getVirtualMachine() != null){
+        		return scheduledAtContainer.getVirtualMachine();
+        	}
+        }
+    	return null;
+    }
 
     @Override
     public String toString() {
@@ -177,14 +188,8 @@ public class ProcessStep extends Element {
 
         String startDateformat = startDate != null ? formatter.format(startDate) : null;
         String finishedAtformat = finishedAt != null ? formatter.format(finishedAt) : null;
-        String vmName = null;
-        if(scheduledAtVM != null){
-        	vmName = scheduledAtVM.getName();
-        }else if(scheduledAtContainer != null){
-        	if(scheduledAtContainer.getVirtualMachine() != null){
-        		vmName = scheduledAtContainer.getVirtualMachine().getName();
-        	}
-        }
+        String vmName = getScheduledAtVM() != null ? getScheduledAtVM().getName() : null;
+        
         String dockerName = scheduledAtContainer != null ? scheduledAtContainer.getName() : null;
         return "ProcessStep{" +
                 "id='" + id + '\'' +

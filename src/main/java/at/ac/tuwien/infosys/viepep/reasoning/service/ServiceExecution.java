@@ -86,10 +86,14 @@ public class ServiceExecution{
             List<ProcessStep> runningSteps = placementHelper.getRunningProcessSteps(processStep.getWorkflowName());
             List<ProcessStep> nextSteps = placementHelper.getNextSteps(processStep.getWorkflowName());
             if ((nextSteps == null || nextSteps.isEmpty()) && (runningSteps == null || runningSteps.isEmpty())) {
+            	System.out.println("Process Step (last Element) Workflowname: " + processStep.getWorkflowName());
                 WorkflowElement workflowById = cacheWorkflowService.getWorkflowById(processStep.getWorkflowName());
-                workflowById.setFinishedAt(finishedAt);
-                cacheWorkflowService.deleteRunningWorkflowInstance(workflowById);
-                log.info("Workflow done. Workflow: " + workflowById);
+                workflowById.setNumberOfFinishedLastElements(workflowById.getNumberOfFinishedLastElements()+1);
+                if(workflowById.getNumberOfFinishedLastElements() == workflowById.getNumberOfLastElements()){
+                	workflowById.setFinishedAt(finishedAt);
+                	cacheWorkflowService.deleteRunningWorkflowInstance(workflowById);
+                	log.info("Workflow done. Workflow: " + workflowById);
+                }
             }
         }
         reasoning.setNextOptimizeTimeNow();

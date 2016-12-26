@@ -185,8 +185,8 @@ public class PlacementHelperImpl implements PlacementHelper {
 			log.error("VM not set for scheduled service on container: " + container);
 			return 0;
 		} else if(!vm.isLeased()) {
-			log.error("VM " + vm + " not leased for scheduled service on container: " + container);
-			return 0;
+//			log.error("VM " + vm + " not leased for scheduled service on container: " + container);
+			return vm.getStartupTime() + container.getDeployTime() + container.getStartupTime();
 		}
 		
 		Date vmStartedAt = vm.getStartedAt();
