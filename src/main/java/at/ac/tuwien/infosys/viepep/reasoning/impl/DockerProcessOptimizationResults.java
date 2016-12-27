@@ -202,7 +202,7 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
             }
 
             if (toInt(x_s_c_number) == 1 && !scheduledForExecution.contains(processStep)){ 
-            	if(processStep.getStartDate() != null) {
+            	if(processStep.getStartDate() != null || processStep.getScheduledStartedAt() != null) {
             		System.out.println("Reschedule: \nProcessStep: " + processStep +"\nContainer: "+container);
             		processStep.rescheduledExecution(container);
                     scheduledForExecution.add(processStep);

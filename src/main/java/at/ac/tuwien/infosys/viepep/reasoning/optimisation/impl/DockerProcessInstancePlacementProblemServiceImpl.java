@@ -97,11 +97,11 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 
     public Result optimize(Date tau_t) {
     	tau_t_startepoch = new Date(((tau_t.getTime() / 1000) - START_EPOCH) * 1000);
-    	System.out.println(tau_t_startepoch);
-    	System.out.println(tau_t_startepoch.getTime());
+//    	System.out.println(tau_t_startepoch);
+//    	System.out.println(tau_t_startepoch.getTime());
 
-    	System.out.println("CONTAINER DEPLOY TIME: " + CONTAINER_DEPLOY_TIME);
-    	System.out.println("VM STARTUP TIME: " + VM_STARTUP_TIME);
+//    	System.out.println("CONTAINER DEPLOY TIME: " + CONTAINER_DEPLOY_TIME);
+//    	System.out.println("VM STARTUP TIME: " + VM_STARTUP_TIME);
 
     	//cleanups
         synchronized (SYNC_OBJECT) {

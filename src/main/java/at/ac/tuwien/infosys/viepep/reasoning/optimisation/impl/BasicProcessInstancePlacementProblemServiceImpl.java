@@ -1,5 +1,6 @@
 package at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl;
 
+import static at.ac.tuwien.infosys.viepep.Constants.START_EPOCH;
 import at.ac.tuwien.infosys.viepep.database.entities.*;
 import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheVirtualMachineService;
@@ -49,6 +50,8 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 
 
     private Date tau_t;
+    private Date tau_t_startepoch;
+    
     private static final long EPSILON = ReasoningImpl.MIN_TAU_T_DIFFERENCE_MS / 1000;
     
 //    private static final long TIMESLOT_DURATION = 20 * 1000 * 1; //timeslot duration is minimum 1 minute
@@ -75,6 +78,8 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     private Problem problem;
 
     public Result optimize(Date tau_t) {
+
+    	tau_t_startepoch = new Date(((tau_t.getTime() / 1000) - START_EPOCH) * 1000);
 
         //cleanups
     	synchronized (SYNC_OBJECT) {
@@ -396,7 +401,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 //                maxRemainingExecutionTime = Math.max(maxRemainingExecutionTime, getRemainingExecutionTimeAndDeployTimes(runningStep));
 //            }
 
-            long rhs = workflowInstance.getDeadline() / 1000; //- maxRemainingExecutionTime / 1000;
+            long rhs = (workflowInstance.getDeadline() / 1000) - START_EPOCH; //- maxRemainingExecutionTime / 1000;
             problem.add(linear, "<=", rhs);
 
         }
@@ -410,7 +415,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     private void addConstraint_3(Problem problem) {
         Linear linear = new Linear();
         linear.add(1, "tau_t_1");
-        problem.add(linear, ">=", tau_t.getTime() / 1000 + EPSILON); //+ TIMESLOT_DURATION / 1000);
+        problem.add(linear, ">=", tau_t_startepoch.getTime() / 1000 + EPSILON); //+ TIMESLOT_DURATION / 1000);
         problem.setVarUpperBound("tau_t_1", Integer.MAX_VALUE);
     }
 

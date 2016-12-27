@@ -92,7 +92,7 @@ public class ReasoningImpl {
                         else {
                             emptyTime = null;
                         }
-                        if (emptyTime != null && ((new Date()).getTime() - emptyTime.getTime()) >= (60 * 1000 * 1)) {
+                        if (emptyTime != null && ((new Date()).getTime() - emptyTime.getTime()) >= (60 * 1000 * 5)) {
                         	if (autoTerminate) {
                         		run = false;
                         	}

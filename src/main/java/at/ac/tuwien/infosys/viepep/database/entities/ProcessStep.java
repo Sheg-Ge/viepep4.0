@@ -44,7 +44,6 @@ public class ProcessStep extends Element {
 
     @ManyToOne//(cascade = CascadeType.ALL)	//TODO: CHECK
     private VirtualMachine scheduledAtVM;
-    private boolean rescheduled = false;
     
     @ManyToOne//(cascade = CascadeType.ALL)
     private DockerContainer scheduledAtContainer;
@@ -157,7 +156,6 @@ public class ProcessStep extends Element {
 //        this.isScheduled = true;
 //        this.scheduledStartedAt = tau_t;
         this.scheduledAtContainer = container;
-        this.rescheduled = true;
     }
     @Override
     public ProcessStep getLastExecutedElement() {

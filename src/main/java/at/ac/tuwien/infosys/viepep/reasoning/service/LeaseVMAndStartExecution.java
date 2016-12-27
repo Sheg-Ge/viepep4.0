@@ -124,7 +124,7 @@ public class LeaseVMAndStartExecution {
 		for (final DockerContainer container : containerProcessSteps.keySet()) {
 			startContainer(virtualMachine, container);
 			for (final ProcessStep processStep : containerProcessSteps.get(container)) {
-				if(!processStep.isRescheduled()){
+				if(processStep.getStartDate()==null){
 					processStep.setStartDate(new Date());
 					serviceExecution.startExecution(processStep, container);
 				}	
