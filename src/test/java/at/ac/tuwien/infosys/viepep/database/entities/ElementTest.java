@@ -2,6 +2,8 @@ package at.ac.tuwien.infosys.viepep.database.entities;
 
 import org.junit.Test;
 
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
+
 import java.util.Date;
 
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -12,21 +14,21 @@ public class ElementTest {
 
     @Test
     public void testGetLastElementSeq() throws Exception {
-        Element workflow = createSequenceWorkflow(new Date(), "100");
+        Element workflow = createSequenceWorkflow(TimeUtil.nowDate(), "100");
         ProcessStep lastExecutedElement = workflow.getLastExecutedElement();
         assertThat(lastExecutedElement.getName(), equalTo("100.2"));
     }
 
     @Test
     public void testGetLastElementAnd() throws Exception {
-        Element workflow = createAndWorkflow(new Date(), "100", true, true, true, true);
+        Element workflow = createAndWorkflow(TimeUtil.nowDate(), "100", true, true, true, true);
         ProcessStep lastExecutedElement = workflow.getLastExecutedElement();
         assertThat(lastExecutedElement.getName(), equalTo("100.3"));
     }
 
     @Test
     public void testGetLastElementXor() throws Exception {
-        Element workflow = createXORWorkflow(new Date(), "100");
+        Element workflow = createXORWorkflow(TimeUtil.nowDate(), "100");
         ProcessStep lastExecutedElement = workflow.getLastExecutedElement();
         assertThat(lastExecutedElement.getName(), equalTo("100.3"));
 
@@ -83,7 +85,7 @@ public class ElementTest {
     }
 
     private Element createXORWorkflow(Date tau_t, String id) {
-        Element workflow = new WorkflowElement(id + "", new Date().getTime() + 1000 * 120, 200);
+        Element workflow = new WorkflowElement(id + "", TimeUtil.now() + 1000 * 120, 200);
 
         Sequence seq = new Sequence(id + "-seq");
         ProcessStep step0 = new ProcessStep(id + ".0", true, ServiceType.Task1, workflow.getName());

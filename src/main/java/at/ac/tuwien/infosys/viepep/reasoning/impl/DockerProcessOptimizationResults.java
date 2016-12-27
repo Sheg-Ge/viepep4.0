@@ -25,6 +25,7 @@ import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowServi
 import at.ac.tuwien.infosys.viepep.reasoning.ProcessOptimizationResults;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
 import at.ac.tuwien.infosys.viepep.reasoning.service.ServiceExecutionController;
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
 
 /**
  * @author Gerta Sheganaku
@@ -178,7 +179,7 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
         	String x_s_c = placementHelper.getDecisionVariableX(processStep, container);
         	
             Number x_s_c_number = optimize.get(x_s_c);
-            System.out.println("x_s_c_number " + x_s_c_number + " - " + x_s_c);
+//            System.out.println("x_s_c_number " + x_s_c_number + " - " + x_s_c);
 
             if (!x.contains(x_s_c)) {
                 x.add(x_s_c);
@@ -203,7 +204,7 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
 
             if (toInt(x_s_c_number) == 1 && !scheduledForExecution.contains(processStep)){ 
             	if(processStep.getStartDate() != null || processStep.getScheduledStartedAt() != null) {
-            		System.out.println("Reschedule: \nProcessStep: " + processStep +"\nContainer: "+container);
+            		//System.out.println("Reschedule: \nProcessStep: " + processStep +"\nContainer: "+container);
             		processStep.rescheduledExecution(container);
                     scheduledForExecution.add(processStep);
                     if (!containersToDeploy.contains(container)) {
@@ -236,7 +237,7 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
                 y.add(y_v_k);
                 if (toInt(y_v_k_number) >= 1) {
                     vmsToStart.add(virtualMachine);
-                    Date date = new Date();
+                    Date date = TimeUtil.nowDate();
                     if (virtualMachine.getToBeTerminatedAt() != null) {
                         date = virtualMachine.getToBeTerminatedAt();
                     }
@@ -250,7 +251,7 @@ public class DockerProcessOptimizationResults implements ProcessOptimizationResu
             	a.add(a_c_v);
             }
 
-            System.out.println("toInt(a_c_v_number) " + a_c_v + " - " + toInt(a_c_v_number) + " - " + a_c_v_number);
+//            System.out.println("toInt(a_c_v_number) " + a_c_v + " - " + toInt(a_c_v_number) + " - " + a_c_v_number);
             if (a_c_v_number == null || toInt(a_c_v_number) == 0) {
                 continue;
             }

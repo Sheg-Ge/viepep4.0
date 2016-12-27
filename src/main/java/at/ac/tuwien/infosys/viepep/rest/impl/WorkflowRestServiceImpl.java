@@ -6,6 +6,7 @@ import at.ac.tuwien.infosys.viepep.reasoning.ReasoningActivator;
 import at.ac.tuwien.infosys.viepep.reasoning.impl.ReasoningImpl;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl.BasicProcessInstancePlacementProblemServiceImpl;
 import at.ac.tuwien.infosys.viepep.rest.WorkflowRestService;
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +41,7 @@ public class WorkflowRestServiceImpl implements WorkflowRestService {
     @Override
     @RequestMapping( value="/addWorkflowRequest", method = RequestMethod.POST, consumes = MediaType.APPLICATION_XML_VALUE)
     public void addWorkflow(@RequestBody WorkflowElement workflowElement) {
-        Date date = new Date();
+        Date date = TimeUtil.nowDate();
         log.info("Recieved 1 new WorkflowElement");
         workflowElement.setArrivedAt(date);
         update(workflowElement, workflowElement);
@@ -57,7 +58,7 @@ public class WorkflowRestServiceImpl implements WorkflowRestService {
         synchronized (BasicProcessInstancePlacementProblemServiceImpl.SYNC_OBJECT) {
 
             try {
-                Date date = new Date();
+                Date date = TimeUtil.nowDate();
                 log.info("Recieved new WorkflowElements: " + workflowElement.getWorkflowElements().size());
                 for (WorkflowElement element : workflowElement.getWorkflowElements()) {
                     element.setArrivedAt(date);
@@ -82,9 +83,9 @@ public class WorkflowRestServiceImpl implements WorkflowRestService {
         	if(parent instanceof ProcessStep){
         		if(((ProcessStep)parent).isLastElement() && ((ProcessStep)parent).isHasToBeExecuted()){
         			int numberOfIterations = howOftenIterated((ProcessStep)parent, 1);
-        			System.out.println("NumberOfITerations set to: " + numberOfIterations + " for ProcessStep " + parent);
+//        			System.out.println("NumberOfITerations set to: " + numberOfIterations + " for ProcessStep " + parent);
         			wfl.setNumberOfLastElements(wfl.getNumberOfLastElements()+numberOfIterations);
-        			System.out.println("Total number of lastElements to wait: " + wfl.getNumberOfLastElements());
+//        			System.out.println("Total number of lastElements to wait: " + wfl.getNumberOfLastElements());
         		}
         	}
             return;

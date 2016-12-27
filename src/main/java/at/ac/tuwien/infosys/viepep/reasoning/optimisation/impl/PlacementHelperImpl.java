@@ -11,6 +11,7 @@ import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowServi
 import at.ac.tuwien.infosys.viepep.database.services.ElementDaoService;
 import at.ac.tuwien.infosys.viepep.database.services.ReportDaoService;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -265,7 +266,7 @@ public class PlacementHelperImpl implements PlacementHelper {
         }
         virtualMachine.terminate();
 
-        ReportingAction report = new ReportingAction(new Date(), virtualMachine.getName(), Action.STOPPED);
+        ReportingAction report = new ReportingAction(TimeUtil.nowDate(), virtualMachine.getName(), Action.STOPPED);
         reportDaoService.save(report);
     }
     
@@ -293,7 +294,7 @@ public class PlacementHelperImpl implements PlacementHelper {
 
     	container.shutdownContainer();
 
-    	DockerReportingAction report = new DockerReportingAction(new Date(), container.getName(), vm.getName(), Action.STOPPED);
+    	DockerReportingAction report = new DockerReportingAction(TimeUtil.nowDate(), container.getName(), vm.getName(), Action.STOPPED);
         reportDaoService.save(report);
     }
 

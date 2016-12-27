@@ -25,6 +25,7 @@ import at.ac.tuwien.infosys.viepep.reasoning.ProblemNotSolvedException;
 import at.ac.tuwien.infosys.viepep.reasoning.ProcessOptimizationResults;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.ProcessInstancePlacementProblemService;
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
 
 /**
  * Created by philippwaibel on 17/05/16. edited by Gerta Sheganaku
@@ -58,7 +59,6 @@ public class ReasoningImpl {
 	public static final long MIN_TAU_T_DIFFERENCE_MS = 10 * 1000;
 	private static final long RETRY_TIMEOUT_MILLIS = 10 * 1000;
 
-
     @Async
     public Future<Boolean> runReasoning(Date date, boolean autoTerminate) throws InterruptedException {
 
@@ -69,7 +69,7 @@ public class ReasoningImpl {
         while (run) {
             synchronized (this) {
                 try {
-                	long now = System.currentTimeMillis();
+                	long now = TimeUtil.now();
 
                 	//System.out.println("now " + now);
                 	//System.out.println("next opt " + nextOptimizeTime.get());
@@ -85,14 +85,14 @@ public class ReasoningImpl {
 
                         if(workflows.isEmpty()) {
                             if(emptyTime == null) {
-                            	emptyTime = new Date();
+                            	emptyTime = TimeUtil.nowDate();
                             };
                             log.info("Time first empty: " + emptyTime);
                         }
                         else {
                             emptyTime = null;
                         }
-                        if (emptyTime != null && ((new Date()).getTime() - emptyTime.getTime()) >= (60 * 1000 * 5)) {
+                        if (emptyTime != null && (TimeUtil.now() - emptyTime.getTime()) >= (60 * 1000 * 5)) {
                         	if (autoTerminate) {
                         		run = false;
                         	}
@@ -104,18 +104,18 @@ public class ReasoningImpl {
                 		 long difference = performOptimisation();
 
                 		 nextOptimizeTime.set(now + difference);
-                         // Thread.sleep(difference);
+                         // TimeUtil.sleep(difference);
                 	}
-                   
-                	Thread.sleep(POLL_INTERVAL_MILLISECONDS);
-                	
-                	
+
+                	TimeUtil.sleep(POLL_INTERVAL_MILLISECONDS);
+
                 } catch (ProblemNotSolvedException ex) {
                     log.error("An exception occurred, could not solve the problem", ex);
                     // try again in some time
-           		 	nextOptimizeTime.set(System.currentTimeMillis() + RETRY_TIMEOUT_MILLIS);
+           		 	nextOptimizeTime.set(TimeUtil.now() + RETRY_TIMEOUT_MILLIS);
                 } catch (Exception ex) {
                     log.error("An unknown exception occurred. Terminating.", ex);
+                    ex.printStackTrace();
                     run = false;
                 }
             }
@@ -161,11 +161,7 @@ public class ReasoningImpl {
         int size = placementHelper.getRunningSteps().size();
         while (size != 0 && times <= 5) {
             log.info("there are still steps running waiting 1 minute: steps running: " + size);
-            try {
-                Thread.sleep(60000);//
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            TimeUtil.sleep(60000);//
             size = placementHelper.getRunningSteps().size();
             times++;
         }
@@ -173,31 +169,39 @@ public class ReasoningImpl {
 
     public long performOptimisation() throws Exception {
 
-        Date tau_t_0 = new Date();
+    	System.out.println("performOptimization");
+        Date tau_t_0 = TimeUtil.nowDate();
         log.info("---------tau_t_0 : " + tau_t_0 + " ------------------------");
         log.info("---------tau_t_0.time : " + tau_t_0.getTime() + " ------------------------");
+        
+        /* pause simulation time while optimizer is running */
+        TimeUtil.pauseTicking();
+
         Result optimize = resourcePredictionService.optimize(tau_t_0);
+
+        /* resume simulation time */
+        TimeUtil.startTicking();
 
         if (optimize == null) {
             throw new ProblemNotSolvedException("Could not solve the Problem");
         }
 
         System.out.println("Objective: " + optimize.getObjective());
-        long tau_t_1 = (START_EPOCH * optimize.get("tau_t_1").longValue()) * 1000;//VERY IMPORTANT,
+        long tau_t_1 = (START_EPOCH + optimize.get("tau_t_1").longValue()) * 1000;
 
         log.info("tau_t_1 was calculted as: "+ new Date(tau_t_1) );
 
         Future<Boolean> processed = processOptimizationResults.processResults(optimize, tau_t_0);
         processed.get();
-        
-        long difference = tau_t_1 - new Date().getTime();
+
+        long difference = tau_t_1 - TimeUtil.now();
         if (difference < 0 || difference > 60*60*1000) {
             difference = MIN_TAU_T_DIFFERENCE_MS;
         }
         log.info("---------sleep for: " + difference / 1000 + " seconds-----------");
         log.info("---------next iteration: " + new Date(tau_t_1) + " -----------");
-        
-        
+
+        System.out.println("---------sleep for: " + difference / 1000 + " seconds-----------");
         return difference;
     }
 
@@ -210,6 +214,6 @@ public class ReasoningImpl {
     }
 
     public void setNextOptimizeTimeAfter(long millis) {
-		nextOptimizeTime.set(System.currentTimeMillis() + millis);
+		nextOptimizeTime.set(TimeUtil.now() + millis);
 	}
 }

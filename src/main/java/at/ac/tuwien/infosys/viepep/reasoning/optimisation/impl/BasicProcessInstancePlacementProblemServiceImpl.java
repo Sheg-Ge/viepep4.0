@@ -1092,9 +1092,9 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     public Collection<Object> getVariables() {
         return this.problem.getVariables();
     }
-    
+
 	private String getAllObjectives(Result optimize) {
-		System.out.println("\n Term 1 \n");
+//		System.out.println("\n Term 1 \n");
 		double sum1 = 0;
 
 		for (VMType vmType : cacheVirtualMachineService.getVMTypes()) {
@@ -1103,9 +1103,9 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 			sum1 += vmType.getCosts() * c;
 		}
 
-		System.out.println("Value: " + sum1);
+//		System.out.println("Value: " + sum1);
 
-		System.out.println("\n Term 2 \n");
+//		System.out.println("\n Term 2 \n");
 		double sum2 = 0;
 		double sum4 = 0;
 		for (WorkflowElement workflowInstance : getNextWorkflowInstances()) {
@@ -1145,10 +1145,9 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 			}
 		}
 
-		System.out.println("Value: " + sum2);
+//		System.out.println("Value: " + sum2);
 
-
-		System.out.println("\n Term 3 \n");
+//		System.out.println("\n Term 3 \n");
 		double sum3 = 0;
 
 		// Term 3
@@ -1161,10 +1160,10 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 			sum3 += OMEGA_F_R_VALUE * fr;
 		}
 
-		System.out.println("Value: " + sum3);
+//		System.out.println("Value: " + sum3);
 
-		System.out.println("\n Term 4 \n");
-		System.out.println("Value: " + sum4);
+//		System.out.println("\n Term 4 \n");
+//		System.out.println("Value: " + sum4);
 		
 		return "\n Sum : "+ (sum1+sum2+sum3+sum4);
 	}

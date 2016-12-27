@@ -4,6 +4,8 @@ import at.ac.tuwien.infosys.viepep.connectors.ViePEPOpenstackClientService;
 import at.ac.tuwien.infosys.viepep.database.entities.VMType;
 import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
 import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
+
 import com.woorea.openstack.base.client.OpenStackResponseException;
 import com.woorea.openstack.connector.JerseyConnector;
 import com.woorea.openstack.keystone.Keystone;
@@ -259,11 +261,7 @@ public class ViePEPOpenstackClientServiceImpl implements ViePEPOpenstackClientSe
         boolean isActive = "ACTIVE".equalsIgnoreCase(server.getStatus());
         int counter = 0;
         while (!isActive && counter < 5) {
-            try {
-                Thread.sleep(20000L);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            TimeUtil.sleep(20000L);
             server = novaClient.servers().show(server.getId()).execute();
             String status = server.getStatus();
             if ("ERROR".equalsIgnoreCase(status)) {

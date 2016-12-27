@@ -1,9 +1,9 @@
 package at.ac.tuwien.infosys.viepep;
 
-import java.util.Date;
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
 
 public class Constants {
 
-	public static final long START_EPOCH = new Date().getTime() / 1000;
+	public static final long START_EPOCH = TimeUtil.now() / 1000;
 
 }

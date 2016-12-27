@@ -3,6 +3,7 @@ package at.ac.tuwien.infosys.viepep.reasoning.service;
 import at.ac.tuwien.infosys.viepep.database.entities.ProcessStep;
 import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
 import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +28,7 @@ public class ServiceExecutionController{
         final Map<VirtualMachine, List<ProcessStep>> vmProcessStepsMap = new HashMap<>();
         for (final ProcessStep processStep : processSteps) {
 
-//            processStep.setStartDate(new Date());
+//            processStep.setStartDate(TimeUtil.nowDate());
             VirtualMachine scheduledAt = processStep.getScheduledAtVM();
             List<ProcessStep> processStepsOnVm = new ArrayList<>();
             if (vmProcessStepsMap.containsKey(scheduledAt)) {
@@ -42,7 +43,7 @@ public class ServiceExecutionController{
             final List<ProcessStep> processSteps1 = vmProcessStepsMap.get(virtualMachine);
             if (!virtualMachine.isLeased()) {
                 virtualMachine.setLeased(true);
-                virtualMachine.setStartedAt(new Date());
+                virtualMachine.setStartedAt(TimeUtil.nowDate());
 
                 leaseVMAndStartExecution.leaseVMAndStartExecution(virtualMachine, processSteps1);
 
@@ -60,7 +61,7 @@ public class ServiceExecutionController{
 
         for (final ProcessStep processStep : processSteps) {
 //        	if(processStep.getStartDate()==null){
-//        		processStep.setStartDate(new Date());   
+//        		processStep.setStartDate(TimeUtil.nowDate());   
 //        	}
         	DockerContainer scheduledAt = processStep.getScheduledAtContainer();
             if (!containerProcessStepsMap.containsKey(scheduledAt)) {
@@ -86,7 +87,7 @@ public class ServiceExecutionController{
             try {
                 if (!virtualMachine.isLeased()) {
                     virtualMachine.setLeased(true);
-                    virtualMachine.setStartedAt(new Date());
+                    virtualMachine.setStartedAt(TimeUtil.nowDate());
                     leaseVMAndStartExecution.leaseVMAndStartExecution(virtualMachine, containerProcessSteps);
                 } else {
                     leaseVMAndStartExecution.startExecutions(vmContainerProcessStepMap.get(virtualMachine), virtualMachine);

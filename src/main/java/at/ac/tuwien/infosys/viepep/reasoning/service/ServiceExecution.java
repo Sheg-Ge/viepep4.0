@@ -7,6 +7,7 @@ import at.ac.tuwien.infosys.viepep.database.entities.WorkflowElement;
 import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowService;
 import at.ac.tuwien.infosys.viepep.reasoning.service.dto.InvocationResultDTO;
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
 import at.ac.tuwien.infosys.viepep.reasoning.impl.ReasoningImpl;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
 import lombok.extern.slf4j.Slf4j;
@@ -47,10 +48,7 @@ public class ServiceExecution{
         log.info("Task-Start: " + processStep);
 
         if (simulate) {
-            try {
-                Thread.sleep(processStep.getExecutionTime());
-            } catch (InterruptedException e) {
-            }
+            TimeUtil.sleep(processStep.getExecutionTime());
         } else {
             InvocationResultDTO invoke = serviceInvoker.invoke(virtualMachine, processStep);
         }
@@ -63,10 +61,7 @@ public class ServiceExecution{
 		log.info("Task-Start: " + processStep);
 
         if (simulate) {
-            try {
-                Thread.sleep(processStep.getExecutionTime());
-            } catch (InterruptedException e) {
-            }
+        	TimeUtil.sleep(processStep.getExecutionTime());
         } else {
             InvocationResultDTO invoke = serviceInvoker.invoke(container, processStep);
         }
@@ -76,17 +71,18 @@ public class ServiceExecution{
 	}
 	
 	private void finaliseExecution(ProcessStep processStep) {
-		Date finishedAt = new Date();
+		Date finishedAt = TimeUtil.nowDate();
         processStep.setFinishedAt(finishedAt);
 
 		log.info("Task-Done: " + processStep);
+		System.out.println("Task-Done: " + processStep);
 
         if (processStep.isLastElement()) {
 
             List<ProcessStep> runningSteps = placementHelper.getRunningProcessSteps(processStep.getWorkflowName());
             List<ProcessStep> nextSteps = placementHelper.getNextSteps(processStep.getWorkflowName());
             if ((nextSteps == null || nextSteps.isEmpty()) && (runningSteps == null || runningSteps.isEmpty())) {
-            	System.out.println("Process Step (last Element) Workflowname: " + processStep.getWorkflowName());
+            	// System.out.println("Process Step (last Element) Workflowname: " + processStep.getWorkflowName());
                 WorkflowElement workflowById = cacheWorkflowService.getWorkflowById(processStep.getWorkflowName());
                 workflowById.setNumberOfFinishedLastElements(workflowById.getNumberOfFinishedLastElements()+1);
                 if(workflowById.getNumberOfFinishedLastElements() == workflowById.getNumberOfLastElements()){

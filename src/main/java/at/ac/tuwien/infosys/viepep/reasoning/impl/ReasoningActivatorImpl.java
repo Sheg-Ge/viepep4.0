@@ -4,6 +4,7 @@ import at.ac.tuwien.infosys.viepep.database.inmemory.database.InMemoryCacheImpl;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheDockerService;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheVirtualMachineService;
 import at.ac.tuwien.infosys.viepep.reasoning.ReasoningActivator;
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,7 +54,7 @@ public class ReasoningActivatorImpl implements ReasoningActivator {
 
     @Override
     public Future<Boolean> start() throws Exception {
-    	return reasoning.runReasoning(new Date(), autoTerminate);
+    	return reasoning.runReasoning(TimeUtil.nowDate(), autoTerminate);
     }
 
     @Override

@@ -1,6 +1,8 @@
 package at.ac.tuwien.infosys.viepep.connectors.impl;
 
 import at.ac.tuwien.infosys.viepep.connectors.ViePEPAwsClientService;
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
+
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
@@ -154,11 +156,7 @@ public class ViePEPAwsClientServiceImpl implements ViePEPAwsClientService {
 
         boolean isWaiting = true;
         while (isWaiting) {
-            try {
-                Thread.sleep(10000L);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            TimeUtil.sleep(10000L);
             DescribeInstancesResult r = ec2.describeInstances();
             for (Reservation rr : r.getReservations()) {
                 List<Instance> instances = rr.getInstances();
@@ -178,11 +176,7 @@ public class ViePEPAwsClientServiceImpl implements ViePEPAwsClientService {
 
         boolean isWaiting = true;
         while (isWaiting && limit > 0) {
-            try {
-                Thread.sleep(10000L);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            TimeUtil.sleep(10000L);
             if (checkVMStatebyID(instanceID, status)) {
                 return true;
             }

@@ -97,8 +97,6 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 
     public Result optimize(Date tau_t) {
     	tau_t_startepoch = new Date(((tau_t.getTime() / 1000) - START_EPOCH) * 1000);
-//    	System.out.println(tau_t_startepoch);
-//    	System.out.println(tau_t_startepoch.getTime());
 
 //    	System.out.println("CONTAINER DEPLOY TIME: " + CONTAINER_DEPLOY_TIME);
 //    	System.out.println("VM STARTUP TIME: " + VM_STARTUP_TIME);
@@ -1059,14 +1057,13 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
           Linear linear = new Linear();
           linear.add(- BTU, decisionVariableY);
           problem.add(linear, "<=",  d_v_k*b_v_k - remainingExecutionTimeAndDeployTimes);
-          
-         
-          System.out.println("******************************** CONSTRAINT 37 for step " + step + "scheduled on container: " + container.getName() +" on VM : " + virtualMachine.getName() + " :: ");
-          System.out.print("r- btu*lease vm? : ");
-          	for(Term record : linear) {
-          		System.out.print(record.getCoefficient() +" * "+ record.getVariable() + "     +     ");
-          	}
-          System.out.print(" <= remaining time kv is leased d: " + d_v_k + " b: " + b_v_k + " = " + d_v_k*b_v_k + " - remainingExecAndDeployTime " + remainingExecutionTimeAndDeployTimes + " \n\n");
+
+//          System.out.println("******************************** CONSTRAINT 37 for step " + step + "scheduled on container: " + container.getName() +" on VM : " + virtualMachine.getName() + " :: ");
+//          System.out.print("r- btu*lease vm? : ");
+//          	for(Term record : linear) {
+//          		System.out.print(record.getCoefficient() +" * "+ record.getVariable() + "     +     ");
+//          	}
+//          System.out.print(" <= remaining time kv is leased d: " + d_v_k + " b: " + b_v_k + " = " + d_v_k*b_v_k + " - remainingExecAndDeployTime " + remainingExecutionTimeAndDeployTimes + " \n\n");
 
       }
     }
@@ -1761,20 +1758,20 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
     }
     
 	private String getAllObjectives(Result optimize) {
-		System.out.println("\n Term 1 \n");
+//		System.out.println("\n Term 1 \n");
 		double sum1 = 0;
 
 		for (VMType vmType : cacheVirtualMachineService.getVMTypes()) {
 			String gamma = placementHelper.getGammaVariable(vmType);
 			double c = optimize.get(gamma).doubleValue();
 			sum1 += vmType.getCosts() * c;
-			System.out.println("Sum just increased for vmType: " + vmType);
-			System.out.println("vmCosts are: " + vmType.getCosts() + ", "+gamma +": " + c + " --> cost*gamma = "+ vmType.getCosts() * c);
+//			System.out.println("Sum just increased for vmType: " + vmType);
+//			System.out.println("vmCosts are: " + vmType.getCosts() + ", "+gamma +": " + c + " --> cost*gamma = "+ vmType.getCosts() * c);
 		}
 
-		System.out.println("Value: " + sum1);
+//		System.out.println("Value: " + sum1);
 
-		System.out.println("\n Term 2 \n");
+//		System.out.println("\n Term 2 \n");
 		double sum2 = 0;
 		double sum6 = 0;
 		for (WorkflowElement workflowInstance : getRunningWorkflowInstances()) {
@@ -1803,9 +1800,9 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 			}
 		}
 
-		System.out.println("Value: " + sum2);
+//		System.out.println("Value: " + sum2);
 
-		System.out.println("\n Term 3 \n");
+//		System.out.println("\n Term 3 \n");
 		double sum3 = 0;
 
 //		// Term 3
@@ -1822,7 +1819,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 //
 //		System.out.println("Value: " + sum3);
 
-		System.out.println("\n Term 4 \n");
+//		System.out.println("\n Term 4 \n");
 		double sum4 = 0;
 
 		// Term 4
@@ -1835,9 +1832,9 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 			sum4 += OMEGA_F_R_VALUE * fr;
 		}
 
-		System.out.println("Value: " + sum4);
+//		System.out.println("Value: " + sum4);
 
-		System.out.println("\nTerm 5 \n");
+//		System.out.println("\nTerm 5 \n");
 		double sum5 = 0;
 		// Term 5
 		for (VirtualMachine vm : cacheVirtualMachineService.getAllVMs()) {
@@ -1852,10 +1849,10 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 			}
 		}
 		
-		System.out.println("Value: " + sum5);
+//		System.out.println("Value: " + sum5);
 
-		System.out.println("\n Term 6 \n");
-		System.out.println("Value: " + sum6);
+//		System.out.println("\n Term 6 \n");
+//		System.out.println("Value: " + sum6);
 
 		
 //		System.out.println("_______________ ALL CONSTRAINTS ______________________");
@@ -1910,41 +1907,41 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 	
 	private String getAllSolvedConstraints(Result result, Problem problem) {
 		for(Constraint constraint : problem.getConstraints()) {
-			System.out.println("LHS Variables : ");
+//			System.out.println("LHS Variables : ");
 			double lhsSum = 0;
 			for(int i = 0; i< constraint.getLhs().size(); i++) {
 				double coefficient = constraint.getLhs().get(i).getCoefficient().doubleValue();
 				Object variable = constraint.getLhs().get(i).getVariable();
 				
-				System.out.print(coefficient + " * " + variable + " (" + result.get(variable) + ") + ");
+//				System.out.print(coefficient + " * " + variable + " (" + result.get(variable) + ") + ");
 				lhsSum+=(coefficient * result.get(variable).doubleValue());
 			}
 			String operator = constraint.getOperator().toString();
 			
-			System.out.println("//// RHS result = " + constraint.getRhs());
-			System.out.println("    ********************************************************** Alltogether: " + lhsSum + operator + constraint.getRhs());
+//			System.out.println("//// RHS result = " + constraint.getRhs());
+//			System.out.println("    ********************************************************** Alltogether: " + lhsSum + operator + constraint.getRhs());
 		}
 		return "";
 	}
 	
 	private String getSolvedConstraint(Result result, Problem problem, int constraintNumber) {
 		Constraint constraint = problem.getConstraints().get(constraintNumber);
-		System.out.println("LHS Variables : ");
+//		System.out.println("LHS Variables : ");
 		double lhsSum = 0;
 		for (int i = 0; i < constraint.getLhs().size(); i++) {
 			double coefficient = constraint.getLhs().get(i).getCoefficient()
 					.doubleValue();
 			Object variable = constraint.getLhs().get(i).getVariable();
 
-			System.out.print(coefficient + " * " + variable + " ("
-					+ result.get(variable) + ") + ");
+//			System.out.print(coefficient + " * " + variable + " ("
+//					+ result.get(variable) + ") + ");
 			lhsSum += (coefficient * result.get(variable).doubleValue());
 		}
 		String operator = constraint.getOperator().toString();
 
-		System.out.println("//// RHS result = " + constraint.getRhs());
-		System.out.println("    ********************************************************** Alltogether: "
-				+ lhsSum + operator + constraint.getRhs());
+//		System.out.println("//// RHS result = " + constraint.getRhs());
+//		System.out.println("    ********************************************************** Alltogether: "
+//				+ lhsSum + operator + constraint.getRhs());
 
 		return "";
 	}

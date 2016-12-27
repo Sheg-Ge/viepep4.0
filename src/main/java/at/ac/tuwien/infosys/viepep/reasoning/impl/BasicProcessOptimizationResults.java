@@ -11,6 +11,7 @@ import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.ProcessInstancePlacementProblemService;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl.BasicProcessInstancePlacementProblemServiceImpl;
 import at.ac.tuwien.infosys.viepep.reasoning.service.ServiceExecutionController;
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.javailp.Result;
 
@@ -140,7 +141,7 @@ public class BasicProcessOptimizationResults implements ProcessOptimizationResul
                 y.add(y_v_k);
                 if (y_v_k_number.intValue() >= 1) {
                     vmsToStart.add(virtualMachine);
-                    Date date = new Date();
+                    Date date = TimeUtil.nowDate();
                     if (virtualMachine.getToBeTerminatedAt() != null) {
                         date = virtualMachine.getToBeTerminatedAt();
                     }

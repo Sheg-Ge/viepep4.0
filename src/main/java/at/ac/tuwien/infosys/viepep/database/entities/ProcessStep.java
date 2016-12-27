@@ -11,6 +11,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 
 import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -75,7 +76,7 @@ public class ProcessStep extends Element {
     public ProcessStep(String name, boolean executed, ServiceType serviceType, String workflowName) {
         this.name = name;
         if (executed) {
-            finishedAt = new Date();
+            finishedAt = TimeUtil.nowDate();
         }
         this.serviceType = serviceType;
         this.workflowName = workflowName;
@@ -114,7 +115,7 @@ public class ProcessStep extends Element {
      * [0] Execution Time, [1] Cost, [2] Reliability, [Throughput]
      */
     public long calculateQoS() {
-    	return getRemainingExecutionTime(new Date());
+    	return getRemainingExecutionTime(TimeUtil.nowDate());
     }
 
     public boolean hasBeenExecuted() {
@@ -203,7 +204,7 @@ public class ProcessStep extends Element {
 
     public void setHasBeenExecuted(boolean hasBeenExecuted) {
         if (hasBeenExecuted) {
-            finishedAt = new Date();
+            finishedAt = TimeUtil.nowDate();
         } else finishedAt = null;
     }
 

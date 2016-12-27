@@ -9,6 +9,8 @@ import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
 import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerImage;
 import at.ac.tuwien.infosys.viepep.database.repositories.WorkflowElementRepository;
 import at.ac.tuwien.infosys.viepep.database.services.WorkflowDaoService;
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
+
 import com.spotify.docker.client.messages.ContainerInfo;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Ignore;
@@ -73,7 +75,7 @@ public class ViePepApplicationTests {
 //		//  virtualMachine.setIpAddress("128.130.172.226"); //TODO change this manualy if run from outside of the cloud,
 //		// but make sure to assign this IP to the VM you just created
 //
-//		Thread.sleep(30 * 1000);
+//		TimeUtil.sleep(30 * 1000);
 //
 //		log.info("VM running, start docker...");
 //		dockerContainer = dockerControllerService.startDocker(virtualMachine, dockerContainer);
@@ -117,7 +119,7 @@ public class ViePepApplicationTests {
 		VirtualMachine virtualMachine = new VirtualMachine("dummyVM", VMType.AWS_SINGLE_CORE);
 		virtualMachine.setIpAddress(testVMIp);
 
-		Thread.sleep(40 * 1000);
+		TimeUtil.sleep(40 * 1000);
 
 		log.info("VM running, start docker...");
 		dockerContainer = dockerControllerService.startDocker(virtualMachine, dockerContainer);
@@ -146,7 +148,7 @@ public class ViePepApplicationTests {
 	public void persistWorkflow_ShouldPersistWorkflow() {
 
 		WorkflowElement workflowElement = createFinishedWorkflow();
-		workflowElement.setFinishedAt(new Date());
+		workflowElement.setFinishedAt(TimeUtil.nowDate());
 		workflowElement = workflowDaoService.finishWorkflow(workflowElement);
 		WorkflowElement workflowFromDatabase = workflowElementRepository.findOne(workflowElement.getId());
 		assertNotNull(workflowFromDatabase);
@@ -154,7 +156,7 @@ public class ViePepApplicationTests {
 
 	private WorkflowElement createFinishedWorkflow() {
 		String name = "finishedWorkflow";
-		WorkflowElement workflow = new WorkflowElement(name, (new Date()).getTime() + 10000, 200);
+		WorkflowElement workflow = new WorkflowElement(name, TimeUtil.now() + 10000, 200);
 		Sequence seq = new Sequence(name + "-seq");
 		ProcessStep elem1 = new ProcessStep(name + ".1", ServiceType.Task1, workflow.getName());
 		seq.addElement(elem1);
@@ -162,7 +164,7 @@ public class ViePepApplicationTests {
 		seq.addElement(elem2);
 		ProcessStep elem = new ProcessStep(name + ".3", ServiceType.Task3, workflow.getName());
 		elem.setLastElement(true);
-		elem.setFinishedAt(new Date());
+		elem.setFinishedAt(TimeUtil.nowDate());
 		seq.addElement(elem);
 		workflow.addElement(seq);
 

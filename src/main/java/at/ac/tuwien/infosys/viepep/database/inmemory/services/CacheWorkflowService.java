@@ -53,7 +53,6 @@ public class CacheWorkflowService {
         }
     }
 
-
     public List<WorkflowElement> getAllWorkflowElements() {
         synchronized (inMemoryCache.getRunningWorkflows()) {
             return inMemoryCache.getAllWorkflowInstances();
@@ -64,14 +63,14 @@ public class CacheWorkflowService {
         synchronized (inMemoryCache.getRunningWorkflows()) {
 	        List<WorkflowElement> nextWorkflows = inMemoryCache.getRunningWorkflows();
 	        Iterator<WorkflowElement> iterator = nextWorkflows.iterator();
-	
+
 	        while(iterator.hasNext()) {
 	            WorkflowElement nextWorkflow = iterator.next();
 	            if (nextWorkflow.getName().equals(workflowInstanceId)) {
 	                return nextWorkflow;
 	            }
 	        }
-	        System.out.println("Workflowinstanceid not found: " + workflowInstanceId + " next workflows" + nextWorkflows);
+	        // System.out.println("Workflowinstanceid not found: " + workflowInstanceId + " next workflows" + nextWorkflows);
 	        return null;
         }
     }

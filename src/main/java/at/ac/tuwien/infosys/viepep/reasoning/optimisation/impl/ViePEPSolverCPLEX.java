@@ -163,10 +163,10 @@ public class ViePEPSolverCPLEX extends SolverCPLEX {
             if(cplex.getStatus() != Status.Optimal) {
                 System.out.println("\n##### ----- CPLEX SOLVER STATUS: "+ cplex.getStatus()+"\n");
             }
-            System.out.println("........ Cplex status: "+ cplex.getCplexStatus());
-            System.out.println("........ Cplex substatus: " + cplex.getCplexSubStatus());
-            System.out.println("........ solver status: "+ cplex.getStatus());
-            
+            //System.out.println("........ Cplex status: "+ cplex.getCplexStatus());
+            //System.out.println("........ Cplex substatus: " + cplex.getCplexSubStatus());
+            //System.out.println("........ solver status: "+ cplex.getStatus());
+
             cplex.end();
 
             LAST_RESULT = result;

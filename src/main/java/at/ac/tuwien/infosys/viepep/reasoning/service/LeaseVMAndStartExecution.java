@@ -24,6 +24,7 @@ import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
 import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
 import at.ac.tuwien.infosys.viepep.database.services.ReportDaoService;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
 
 /**
  * Created by philippwaibel on 18/05/16.
@@ -59,7 +60,7 @@ public class LeaseVMAndStartExecution {
         stopWatch.start();
         String address = startVM(virtualMachine);
 
-        ReportingAction report =  new ReportingAction(new Date(), virtualMachine.getName(), Action.START);
+        ReportingAction report =  new ReportingAction(TimeUtil.nowDate(), virtualMachine.getName(), Action.START);
         reportDaoService.save(report);
 
         if (address == null) {
@@ -86,7 +87,7 @@ public class LeaseVMAndStartExecution {
         stopWatch.start();
         String address = startVM(virtualMachine);
 
-        ReportingAction report =  new ReportingAction(new Date(), virtualMachine.getName(), Action.START);
+        ReportingAction report =  new ReportingAction(TimeUtil.nowDate(), virtualMachine.getName(), Action.START);
         reportDaoService.save(report);
 
         if (address == null) {
@@ -114,7 +115,7 @@ public class LeaseVMAndStartExecution {
 
     public void startExecutions(final List<ProcessStep> processSteps, final VirtualMachine virtualMachine) {
         for (final ProcessStep processStep : processSteps) {
-            processStep.setStartDate(new Date());
+            processStep.setStartDate(TimeUtil.nowDate());
         	serviceExecution.startExecution(processStep, virtualMachine);
 
         }
@@ -125,7 +126,7 @@ public class LeaseVMAndStartExecution {
 			startContainer(virtualMachine, container);
 			for (final ProcessStep processStep : containerProcessSteps.get(container)) {
 				if(processStep.getStartDate()==null){
-					processStep.setStartDate(new Date());
+					processStep.setStartDate(TimeUtil.nowDate());
 					serviceExecution.startExecution(processStep, container);
 				}	
 			}
@@ -136,23 +137,15 @@ public class LeaseVMAndStartExecution {
     	String address = null;
     	if (simulate) {
             address = "128.130.172.211";
-            try {
-                Thread.sleep(virtualMachine.getStartupTime());
-                /* if we are not in Docker mode, additionally sleep some time for deployment of the service */
-                if (!useDocker) {
-                    Thread.sleep(virtualMachine.getDeployTime());
-                }
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+            TimeUtil.sleep(virtualMachine.getStartupTime());
+            /* if we are not in Docker mode, additionally sleep some time for deployment of the service */
+            if (!useDocker) {
+            	TimeUtil.sleep(virtualMachine.getDeployTime());
             }
         } else {
             address = viePEPClientService.startNewVM(virtualMachine.getName(), virtualMachine.getVmType().flavor(), virtualMachine.getServiceType().name(), virtualMachine.getVmType().getLocation());
             log.info("VM up and running with ip: " + address + " vm: " + virtualMachine);
-            try {
-                Thread.sleep(startupTime); //sleep 15 seconds, since as soon as it is up, it still has to deploy the services
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            TimeUtil.sleep(startupTime); //sleep 15 seconds, since as soon as it is up, it still has to deploy the services
         }
     	return address;
     }
@@ -164,14 +157,10 @@ public class LeaseVMAndStartExecution {
     	}
     	
     	if(simulate) {
-    		try {
-    			if(!placementHelper.imageForContainerEverDeployedOnVM(container, vm)){
-                    Thread.sleep(container.getDeployTime());
-    			}
-                Thread.sleep(container.getStartupTime()); 
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+    		if(!placementHelper.imageForContainerEverDeployedOnVM(container, vm)){
+				TimeUtil.sleep(container.getDeployTime());
+			}
+			TimeUtil.sleep(container.getStartupTime());
     	} else {
     		log.info("Start Container: " + container + " on VM: " + vm);
 			try {
@@ -181,10 +170,10 @@ public class LeaseVMAndStartExecution {
 			}
     	}
     	container.setRunning(true);
-    	container.setStartedAt(new Date());
+    	container.setStartedAt(TimeUtil.nowDate());
 		vm.addDockerContainer(container);
 
-    	DockerReportingAction report =  new DockerReportingAction(new Date(), container.getName(), vm.getName(), Action.START);
+    	DockerReportingAction report =  new DockerReportingAction(TimeUtil.nowDate(), container.getName(), vm.getName(), Action.START);
         reportDaoService.save(report);
          
     }

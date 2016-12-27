@@ -8,6 +8,7 @@ import at.ac.tuwien.infosys.viepep.database.entities.Sequence;
 import at.ac.tuwien.infosys.viepep.database.entities.ServiceType;
 import at.ac.tuwien.infosys.viepep.database.entities.WorkflowElement;
 import at.ac.tuwien.infosys.viepep.database.entities.WorkflowElements;
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
 
 public class TestWorkflows {
 
@@ -16,11 +17,11 @@ public class TestWorkflows {
 	public static WorkflowElements constructTestWorkflows(Integer ... processTypeIDs) {
 		WorkflowElements result = new WorkflowElements();
 		for(int processTypeID : processTypeIDs) {
-			Date deadline = new Date();
+			Date deadline = TimeUtil.nowDate();
 	        double penalty = 200+(processTypeID*10);
 	        WorkflowElement processInstance = TestWorkflows.getProcess1(processTypeID, deadline, penalty);
 	        long execDuration = processInstance.calculateQoS();
-	        processInstance.setDeadline((long) ((new Date().getTime()) + execDuration * DEADLINE_FACTOR));
+	        processInstance.setDeadline((long) (TimeUtil.now() + execDuration * DEADLINE_FACTOR));
 	        result.getWorkflowElements().add(processInstance);
 		}
         return result;
