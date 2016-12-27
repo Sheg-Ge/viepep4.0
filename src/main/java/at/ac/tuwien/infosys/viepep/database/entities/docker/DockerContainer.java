@@ -34,6 +34,8 @@ public class DockerContainer {
     @ManyToOne
     private DockerImage dockerImage;
     
+    private int number;
+    
     @ManyToOne
     private VirtualMachine virtualMachine;
     
@@ -49,9 +51,10 @@ public class DockerContainer {
     private DockerContainer() {
     }
 
-    public DockerContainer(DockerImage dockerImage, DockerConfiguration containerConfiguration) {
+    public DockerContainer(DockerImage dockerImage, DockerConfiguration containerConfiguration, int number) {
         this.containerConfiguration = containerConfiguration;
         this.dockerImage = dockerImage;
+        this.number = number;
     }
 
     @Deprecated
@@ -63,7 +66,7 @@ public class DockerContainer {
     }
 
     public String getName() {
-        return containerConfiguration.name() + "_" + this.dockerImage.getServiceName();
+        return containerConfiguration.name() + "_" + this.dockerImage.getServiceName()+"_"+number;
     }
 
 	public DockerConfiguration getContainerConfiguration() {

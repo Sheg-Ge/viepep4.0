@@ -82,7 +82,7 @@ public class ViePEPDockerControllerServiceImpl implements ViePEPDockerController
                 log.info(image + " Unknown image ID ");
                 continue;
             }
-            DockerContainer con = new DockerContainer(dockerImage, DockerConfiguration.SINGLE_CORE);
+            DockerContainer con = new DockerContainer(dockerImage, DockerConfiguration.SINGLE_CORE, 0);
             dockers.add(con);
         }
         return dockers;

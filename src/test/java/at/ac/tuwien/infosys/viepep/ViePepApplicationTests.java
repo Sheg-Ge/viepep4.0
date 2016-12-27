@@ -112,7 +112,7 @@ public class ViePepApplicationTests {
 		//DockerImage dockerImage = new DockerImage("exampleApp", "bonomat", "viepep-backend-services", 8080, 8080);
 		DockerConfiguration dockerConfiguration = DockerConfiguration.SINGLE_CORE;
 
-		DockerContainer dockerContainer = new DockerContainer(dockerImage, dockerConfiguration);
+		DockerContainer dockerContainer = new DockerContainer(dockerImage, dockerConfiguration, 0);
 
 		VirtualMachine virtualMachine = new VirtualMachine("dummyVM", VMType.AWS_SINGLE_CORE);
 		virtualMachine.setIpAddress(testVMIp);

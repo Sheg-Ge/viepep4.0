@@ -40,41 +40,45 @@ public class CacheDockerService {
     
     @Value("${dockercontainer.images}")
     private int SERVICE_TYPES; // how many docker images (mapping one service types)
-    @Value("${dockercontainer.instances.perimage}")
-    private int CONTAINERS_PER_IMAGE; //different configurations per Image/Service Type
+    @Value("${dockercontainer.configurations}")
+    private int CONTAINER_CONFIGURATIONS; //different configurations per Image/Service Type
+    @Value("${dockercontainer.perImageAndConfiguration}")
+    private int CONTAINERS_PER_IMAGE_AND_CONFIGURATION;
     
     public void initializeDockerContainers() {
-        for (int st = 1; st <= SERVICE_TYPES; st++) {
-            DockerImage dockerImage = parseByServiceTypeId("service" + st);            
+    	for(int number = 1; number <= CONTAINERS_PER_IMAGE_AND_CONFIGURATION; number ++){
+    		for (int st = 1; st <= SERVICE_TYPES; st++) {
+    			DockerImage dockerImage = parseByServiceTypeId("service" + st);            
             
-            for(int c=1; c<=CONTAINERS_PER_IMAGE; c++) {
-            	DockerConfiguration configuration = null;
-            	switch (c) {
-            	case 1:
-                    configuration = DockerConfiguration.MICRO_CORE;
-                    break;
-                case 2:
-                    configuration = DockerConfiguration.SINGLE_CORE;
-                    break;
-                case 3:
-                    configuration = DockerConfiguration.DUAL_CORE;
-                    break;
-                case 4:
-                    configuration = DockerConfiguration.QUAD_CORE;
-                    break;
-//                case 5:
-//                    configuration = DockerConfiguration.HEXA_CORE;
-//                    break;
-            	}
+    			for(int c=1; c<=CONTAINER_CONFIGURATIONS; c++) {
+    				DockerConfiguration configuration = null;
+    				switch (c) {
+    				case 1:
+    					configuration = DockerConfiguration.MICRO_CORE;
+    					break;
+    				case 2:
+    					configuration = DockerConfiguration.SINGLE_CORE;
+    					break;
+    				case 3:
+    					configuration = DockerConfiguration.DUAL_CORE;
+    					break;
+    				case 4:
+    					configuration = DockerConfiguration.QUAD_CORE;
+    					break;
+//              	  case 5:
+//                  	  configuration = DockerConfiguration.HEXA_CORE;
+//                        break;
+    				}
             	
-            	if(dockerImage.getServiceType().getCpuLoad() <= configuration.getCPUPoints() && dockerImage.getServiceType().getMemory() <= configuration.getRAM()){
-            		DockerContainer container = new DockerContainer(dockerImage, configuration);
-            		container.setDeployCost(defaultDockerDeployCost);
-            		container.setDeployTime(defaultDockerDeployTime);
-            		container.setStartupTime(defaultDockerStartupTime);
-    				inMemoryCache.addDockerContainer(container);
-                }
-            }
+    				if(dockerImage.getServiceType().getCpuLoad() <= configuration.getCPUPoints() && dockerImage.getServiceType().getMemory() <= configuration.getRAM()){
+    					DockerContainer container = new DockerContainer(dockerImage, configuration, number);
+    					container.setDeployCost(defaultDockerDeployCost);
+    					container.setDeployTime(defaultDockerDeployTime);
+    					container.setStartupTime(defaultDockerStartupTime);
+    					inMemoryCache.addDockerContainer(container);
+    				}
+    			}
+    		}
         }
     }
     
