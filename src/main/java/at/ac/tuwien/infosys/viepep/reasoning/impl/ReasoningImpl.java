@@ -148,7 +148,6 @@ public class ReasoningImpl {
         }
         log.info(String.format("From %s workflows, %s where delayed", workflows.size(), delayed));
 
-
         for(WorkflowElement workflowElement : cacheWorkflowService.getAllWorkflowElements()) {
             workflowDaoService.finishWorkflow(workflowElement);
         }
@@ -158,8 +157,10 @@ public class ReasoningImpl {
 
     private void waitUntilAllProcessDone() {
         int times = 0;
+        placementHelper.setFinishedWorkflows();
         int size = placementHelper.getRunningSteps().size();
         while (size != 0 && times <= 5) {
+            placementHelper.setFinishedWorkflows();
             log.info("there are still steps running waiting 1 minute: steps running: " + size);
             TimeUtil.sleep(60000);//
             size = placementHelper.getRunningSteps().size();
@@ -169,7 +170,6 @@ public class ReasoningImpl {
 
     public long performOptimisation() throws Exception {
 
-    	System.out.println("performOptimization");
         Date tau_t_0 = TimeUtil.nowDate();
         log.info("---------tau_t_0 : " + tau_t_0 + " ------------------------");
         log.info("---------tau_t_0.time : " + tau_t_0.getTime() + " ------------------------");
@@ -186,7 +186,8 @@ public class ReasoningImpl {
             throw new ProblemNotSolvedException("Could not solve the Problem");
         }
 
-        System.out.println("Objective: " + optimize.getObjective());
+        if(optimize.getObjective().doubleValue() > 0.0001)
+        	log.info("---> Objective: " + optimize.getObjective());
         long tau_t_1 = (START_EPOCH + optimize.get("tau_t_1").longValue()) * 1000;
 
         log.info("tau_t_1 was calculted as: "+ new Date(tau_t_1) );
@@ -201,7 +202,6 @@ public class ReasoningImpl {
         log.info("---------sleep for: " + difference / 1000 + " seconds-----------");
         log.info("---------next iteration: " + new Date(tau_t_1) + " -----------");
 
-        System.out.println("---------sleep for: " + difference / 1000 + " seconds-----------");
         return difference;
     }
 

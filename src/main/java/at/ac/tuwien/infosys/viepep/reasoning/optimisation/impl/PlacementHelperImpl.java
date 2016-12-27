@@ -78,6 +78,8 @@ public class PlacementHelperImpl implements PlacementHelper {
                 }
                 workflow.setFinishedAt(finishedDate);
                 cacheWorkflowService.deleteRunningWorkflowInstance(workflow);
+            	log.warn("Workflow done. Workflow: " + workflow); // TODO reset to INFO
+
             }
 
         }
@@ -341,7 +343,7 @@ public class PlacementHelperImpl implements PlacementHelper {
 //                    }
                 }
                 else if (element instanceof LoopConstruct) {
-                	System.out.println("*********** ***** number of Executions: " + element.getNumberOfExecutions() + " Number of Iterations: "+ ((LoopConstruct) element).getNumberOfIterationsToBeExecuted());
+//                	System.out.println("*********** ***** number of Executions: " + element.getNumberOfExecutions() + " Number of Iterations: "+ ((LoopConstruct) element).getNumberOfIterationsToBeExecuted());
                 	if((element.getNumberOfExecutions() < ((LoopConstruct) element).getNumberOfIterationsToBeExecuted())) {
                 		for(Element subElement : subElementList) {
                 			nextSteps.addAll(getNextSteps(subElement));

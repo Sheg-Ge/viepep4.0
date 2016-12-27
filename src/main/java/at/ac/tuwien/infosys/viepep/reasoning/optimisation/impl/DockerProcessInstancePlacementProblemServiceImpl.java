@@ -103,7 +103,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 
     	//cleanups
         synchronized (SYNC_OBJECT) {
-            placementHelper.setFinishedWorkflows();
+        	placementHelper.setFinishedWorkflows();
 
 //            updateUsageMap();
             nextWorkflowInstances = null;

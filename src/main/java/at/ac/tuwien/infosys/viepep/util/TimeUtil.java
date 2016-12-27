@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 @Scope("singleton")
 public class TimeUtil extends Thread {
 
-	public static final AtomicLong TIME = new AtomicLong(new Date().getTime());
+	public static final AtomicLong TIME = new AtomicLong(-1);
 
 	public static final AtomicBoolean STARTED = new AtomicBoolean();
 	public static final AtomicBoolean RUNNING = new AtomicBoolean();
@@ -104,6 +104,9 @@ public class TimeUtil extends Thread {
     }
 
     public static void startTicking() {
+    	if(TIME.get() < 0) {
+    		TIME.set(new Date().getTime());
+    	}
     	RUNNING.set(true);
     }
 
@@ -113,7 +116,7 @@ public class TimeUtil extends Thread {
 
     public static long now() {
     	ensureInstance();
-    	if(!INSTANCE.simulate) {
+    	if(!INSTANCE.simulate || TIME.get() < 0) {
     		return new Date().getTime();
     	}
 		return TIME.get();
@@ -121,7 +124,7 @@ public class TimeUtil extends Thread {
 
     public static Date nowDate() {
     	ensureInstance();
-    	if(!INSTANCE.simulate) {
+    	if(!INSTANCE.simulate || TIME.get() < 0) {
     		return new Date();
     	}
     	return new Date(TIME.get());

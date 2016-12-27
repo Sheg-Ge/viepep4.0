@@ -59,6 +59,7 @@ public class ServiceExecution{
     @Async
 	public void startExecution(ProcessStep processStep, DockerContainer container) {
 		log.info("Task-Start: " + processStep);
+		System.out.println("Task-Start: " + processStep);
 
         if (simulate) {
         	TimeUtil.sleep(processStep.getExecutionTime());
@@ -77,21 +78,25 @@ public class ServiceExecution{
 		log.info("Task-Done: " + processStep);
 		System.out.println("Task-Done: " + processStep);
 
-        if (processStep.isLastElement()) {
-
-            List<ProcessStep> runningSteps = placementHelper.getRunningProcessSteps(processStep.getWorkflowName());
-            List<ProcessStep> nextSteps = placementHelper.getNextSteps(processStep.getWorkflowName());
-            if ((nextSteps == null || nextSteps.isEmpty()) && (runningSteps == null || runningSteps.isEmpty())) {
-            	// System.out.println("Process Step (last Element) Workflowname: " + processStep.getWorkflowName());
-                WorkflowElement workflowById = cacheWorkflowService.getWorkflowById(processStep.getWorkflowName());
-                workflowById.setNumberOfFinishedLastElements(workflowById.getNumberOfFinishedLastElements()+1);
-                if(workflowById.getNumberOfFinishedLastElements() == workflowById.getNumberOfLastElements()){
-                	workflowById.setFinishedAt(finishedAt);
-                	cacheWorkflowService.deleteRunningWorkflowInstance(workflowById);
-                	log.info("Workflow done. Workflow: " + workflowById);
-                }
-            }
-        }
+//        if (processStep.isLastElement()) {
+//
+//            List<ProcessStep> runningSteps = placementHelper.getRunningProcessSteps(processStep.getWorkflowName());
+//            List<ProcessStep> nextSteps = placementHelper.getNextSteps(processStep.getWorkflowName());
+//            if ((nextSteps == null || nextSteps.isEmpty()) && (runningSteps == null || runningSteps.isEmpty())) {
+//            	// System.out.println("Process Step (last Element) Workflowname: " + processStep.getWorkflowName());
+//                WorkflowElement workflowById = cacheWorkflowService.getWorkflowById(processStep.getWorkflowName());
+//                if(workflowById == null) {
+//                	log.warn("Unable to find workflow for ID: " + processStep.getWorkflowName());
+//                }
+//                System.out.println("setNumberOfFinishedLastElements " + processStep.getWorkflowName());
+//                workflowById.setNumberOfFinishedLastElements(workflowById.getNumberOfFinishedLastElements() + 1);
+//                if(workflowById.getNumberOfFinishedLastElements() == workflowById.getNumberOfLastElements()){
+//                	workflowById.setFinishedAt(finishedAt);
+//                	cacheWorkflowService.deleteRunningWorkflowInstance(workflowById);
+//                	log.warn("Workflow done. Workflow: " + workflowById); // TODO reset to INFO
+//                }
+//            }
+//        }
         reasoning.setNextOptimizeTimeNow();
         
 	}
