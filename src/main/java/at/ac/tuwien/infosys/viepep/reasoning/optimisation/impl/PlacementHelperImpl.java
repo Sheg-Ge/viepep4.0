@@ -78,10 +78,8 @@ public class PlacementHelperImpl implements PlacementHelper {
                 }
                 workflow.setFinishedAt(finishedDate);
                 cacheWorkflowService.deleteRunningWorkflowInstance(workflow);
-            	log.warn("Workflow done. Workflow: " + workflow); // TODO reset to INFO
-
+            	log.info("Workflow done. Workflow: " + workflow);
             }
-
         }
 
     }
@@ -272,6 +270,7 @@ public class PlacementHelperImpl implements PlacementHelper {
         reportDaoService.save(report);
     }
     
+    @Deprecated // TODO: Remove?
     public void terminateVM(VirtualMachine virtualMachine, Date date) {
         if (!simulate) {
             log.info("Terminate: " + virtualMachine);
@@ -420,7 +419,7 @@ public class PlacementHelperImpl implements PlacementHelper {
      * indicates if a VM with ID v_k is leased
      * @return 0 if not leased, 1 if leased
      */
-    public int getBeta(VirtualMachine vm) {
+    public int isLeased(VirtualMachine vm) {
         return vm.isLeased() ? 1 : 0;
     }
     
@@ -447,13 +446,17 @@ public class PlacementHelperImpl implements PlacementHelper {
      */
     public long getRemainingLeasingDuration(Date tau_t, VirtualMachine vm) {
         Date startedAt = vm.getStartedAt();
-        if (startedAt == null) {
+        Date toBeTerminatedAt = vm.getToBeTerminatedAt();
+
+        if (startedAt == null && toBeTerminatedAt == null) {
             return 0;
         }
-        Date toBeTerminatedAt = vm.getToBeTerminatedAt();
         if (toBeTerminatedAt == null) {
             toBeTerminatedAt = new Date(startedAt.getTime() + vm.getVmType().getLeasingDuration());
+//            vm.setToBeTerminatedAt(toBeTerminatedAt); //TODO: remove Hack
+            
         }
+        
         long remainingLeasingDuration = toBeTerminatedAt.getTime() - tau_t.getTime();
         if (remainingLeasingDuration < 0) {
             remainingLeasingDuration = 0;
@@ -571,8 +574,14 @@ public class PlacementHelperImpl implements PlacementHelper {
 		return decisionVariableA + "_times_" + decisionVariableX;
 	}
 	
+	public String getXTimesT1(ProcessStep step, VirtualMachine vm) {
+		String decisionVariableX = getDecisionVariableX(step, vm);
+		return decisionVariableX + "_times_tau_t_1";
+	}
+	
 	public boolean imageForStepEverDeployedOnVM(ProcessStep step, VirtualMachine vm) {
 		for(DockerContainer container : vm.getDeployedContainers()){
+			// System.out.println(" Deployed Container on VM ("+vm+") :"+ container);
 			if(step.getServiceType().getName().equals(container.getDockerImage().getServiceName())) {
 				return true;
 			}

@@ -171,7 +171,7 @@ public class LeaseVMAndStartExecution {
     	}
     	container.setRunning(true);
     	container.setStartedAt(TimeUtil.nowDate());
-		vm.addDockerContainer(container);
+		vm.deployDockerContainer(container);
 
     	DockerReportingAction report =  new DockerReportingAction(TimeUtil.nowDate(), container.getName(), vm.getName(), Action.START);
         reportDaoService.save(report);

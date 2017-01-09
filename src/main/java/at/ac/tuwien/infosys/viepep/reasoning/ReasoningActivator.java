@@ -11,4 +11,5 @@ public interface ReasoningActivator {
     Future<Boolean> start() throws Exception;
 
     void stop();
+
 }

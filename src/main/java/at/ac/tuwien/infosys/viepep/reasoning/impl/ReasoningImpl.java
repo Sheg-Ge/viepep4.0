@@ -175,12 +175,10 @@ public class ReasoningImpl {
         log.info("---------tau_t_0.time : " + tau_t_0.getTime() + " ------------------------");
         
         /* pause simulation time while optimizer is running */
-        TimeUtil.pauseTicking();
+        TimeUtil.setRealTime();
+        System.out.println("Perform optimization");
 
         Result optimize = resourcePredictionService.optimize(tau_t_0);
-
-        /* resume simulation time */
-        TimeUtil.startTicking();
 
         if (optimize == null) {
             throw new ProblemNotSolvedException("Could not solve the Problem");
@@ -194,6 +192,9 @@ public class ReasoningImpl {
 
         Future<Boolean> processed = processOptimizationResults.processResults(optimize, tau_t_0);
         processed.get();
+
+        /* resume simulation time */
+        TimeUtil.setFastTicking();
 
         long difference = tau_t_1 - TimeUtil.now();
         if (difference < 0 || difference > 60*60*1000) {

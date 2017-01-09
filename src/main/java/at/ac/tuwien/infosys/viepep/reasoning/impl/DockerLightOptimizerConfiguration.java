@@ -6,26 +6,26 @@ import org.springframework.context.annotation.PropertySource;
 
 import at.ac.tuwien.infosys.viepep.reasoning.ProcessOptimizationResults;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.ProcessInstancePlacementProblemService;
-import at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl.DockerProcessInstancePlacementProblemServiceImpl;
+import at.ac.tuwien.infosys.viepep.reasoning.optimisation.impl.DockerLightProcessInstancePlacementProblemServiceImpl;
 
 /**
  * @author Gerta Sheganaku
  */
 
 @Configuration
-@Profile("docker")
+@Profile("dockerLight")
 @PropertySource(value = "application-docker.properties")
-public class DockerOptimizerConfiguration {
+public class DockerLightOptimizerConfiguration {
 
 	@Bean
 	public ProcessInstancePlacementProblemService initializeParameters() {
-		System.out.println("Profile Docker!!");
-		return new DockerProcessInstancePlacementProblemServiceImpl();
+		System.out.println("Profile DockerLight!!");
+		return new DockerLightProcessInstancePlacementProblemServiceImpl();
 	}
 
 	@Bean
 	public ProcessOptimizationResults processResults() {
-		return new DockerProcessOptimizationResults();
+		return new DockerLightProcessOptimizationResults();
 	}
 
 }

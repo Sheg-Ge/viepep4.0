@@ -59,7 +59,6 @@ public class ServiceExecution{
     @Async
 	public void startExecution(ProcessStep processStep, DockerContainer container) {
 		log.info("Task-Start: " + processStep);
-		System.out.println("Task-Start: " + processStep);
 
         if (simulate) {
         	TimeUtil.sleep(processStep.getExecutionTime());
@@ -76,7 +75,6 @@ public class ServiceExecution{
         processStep.setFinishedAt(finishedAt);
 
 		log.info("Task-Done: " + processStep);
-		System.out.println("Task-Done: " + processStep);
 
 //        if (processStep.isLastElement()) {
 //
@@ -97,8 +95,10 @@ public class ServiceExecution{
 //                }
 //            }
 //        }
-        reasoning.setNextOptimizeTimeNow();
-        
+
+
+		reasoning.setNextOptimizeTimeNow();
+
 	}
 
 }

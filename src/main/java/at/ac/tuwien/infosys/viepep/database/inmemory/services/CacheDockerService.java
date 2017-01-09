@@ -53,16 +53,16 @@ public class CacheDockerService {
     			for(int c=1; c<=CONTAINER_CONFIGURATIONS; c++) {
     				DockerConfiguration configuration = null;
     				switch (c) {
+//    				case 1:
+//    					configuration = DockerConfiguration.MICRO_CORE;
+//    					break;
     				case 1:
-    					configuration = DockerConfiguration.MICRO_CORE;
-    					break;
-    				case 2:
     					configuration = DockerConfiguration.SINGLE_CORE;
     					break;
-    				case 3:
+    				case 2:
     					configuration = DockerConfiguration.DUAL_CORE;
     					break;
-    				case 4:
+    				case 3:
     					configuration = DockerConfiguration.QUAD_CORE;
     					break;
 //              	  case 5:
@@ -79,8 +79,20 @@ public class CacheDockerService {
     				}
     			}
     		}
-        }
+    	}
     }
+   
+    public void initializeDockerContainers(VirtualMachine virtualMachine) {
+    	for (int st = 1; st <= SERVICE_TYPES; st++) {
+			DockerImage dockerImage = parseByServiceTypeId("service" + st);
+			DockerContainer container = new DockerContainer(dockerImage, virtualMachine);
+			container.setDeployCost(defaultDockerDeployCost);
+			container.setDeployTime(defaultDockerDeployTime);
+			container.setStartupTime(defaultDockerStartupTime);
+			inMemoryCache.addDockerContainer(container);
+			virtualMachine.addDockerContainer(container);
+    	}		
+	}
     
     public Set<DockerImage> getDockerImages() {
         return inMemoryCache.getDockerMap().keySet();

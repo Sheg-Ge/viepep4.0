@@ -53,7 +53,7 @@ public interface PlacementHelper {
 	
 	String getFValueRVariable(VirtualMachine vm);
 
-	int getBeta(VirtualMachine vm);
+	int isLeased(VirtualMachine vm);
 
 	String getDecisionVariableY(VirtualMachine vm);
 
@@ -104,5 +104,7 @@ public interface PlacementHelper {
 	String getAtimesX(ProcessStep step, DockerContainer container, VirtualMachine vm);
 
 	List<ProcessStep> getRunningOrNotStartedSteps();
+
+	String getXTimesT1(ProcessStep step, VirtualMachine vm);
 
 }

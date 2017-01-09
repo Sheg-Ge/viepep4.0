@@ -1,18 +1,22 @@
 package at.ac.tuwien.infosys.viepep.database.entities;
 
-import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
-import lombok.Getter;
-import lombok.Setter;
-
-import javax.persistence.*;
-
-import org.springframework.beans.factory.annotation.Value;
-
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.OneToMany;
+
+import lombok.Getter;
+import lombok.Setter;
+import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerContainer;
 
 /**
  * Created with IntelliJ IDEA.
@@ -66,6 +70,10 @@ public class VirtualMachine implements Serializable {
 
     @OneToMany(mappedBy="virtualMachine")
     private List<DockerContainer> deployedContainers;
+    
+
+    @OneToMany(mappedBy="fixedVirtualMachine")
+    private List<DockerContainer> containers;
 
     public VirtualMachine(String name, Integer numberCores, ServiceType serviceType, String location) {
         this.name = name;
@@ -116,7 +124,7 @@ public class VirtualMachine implements Serializable {
         return deployedContainers;
     }
     
-    public void addDockerContainer(DockerContainer dockerContainer) {
+    public void deployDockerContainer(DockerContainer dockerContainer) {
         if (deployedContainers == null) {
             this.deployedContainers = new ArrayList<>();
         }
@@ -125,6 +133,15 @@ public class VirtualMachine implements Serializable {
         }
     }
 
+    public void addDockerContainer(DockerContainer dockerContainer){
+    	if (containers == null) {
+            this.containers = new ArrayList<>();
+        }
+        if (!containers.contains(dockerContainer)) {
+            containers.add(dockerContainer);
+        }
+    }
+    
     public void setToBeTerminatedAt(Date d) {
     	this.toBeTerminatedAt = d;
     }
@@ -181,5 +198,15 @@ public class VirtualMachine implements Serializable {
         this.setStartedAt(null);
         this.setToBeTerminatedAt(null);
         this.serviceType = null;
+        this.deployedContainers = null;
     }
+
+	public DockerContainer getContainer(ProcessStep processStep) {
+		for(DockerContainer container : containers){
+			if(container.getDockerImage().getServiceType().getName().equals(processStep.getServiceType().getName())){
+				return container;
+			}
+		}
+		return null;
+	}
 }

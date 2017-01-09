@@ -68,7 +68,6 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     @Value("${virtualmachine.startup.time}")
     private long VM_STARTUP_TIME;
     
-    
 //    private Map<Integer, Integer> currentVMUsage = new HashMap<>();
 
     private List<Element> allRunningSteps;
@@ -78,7 +77,6 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     private Problem problem;
 
     public Result optimize(Date tau_t) {
-
     	tau_t_startepoch = new Date(((tau_t.getTime() / 1000) - START_EPOCH) * 1000);
 
         //cleanups
@@ -204,7 +202,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
         	String g_v_k = placementHelper.getGVariable(vm);
         	String y_v_k = placementHelper.getDecisionVariableY(vm);
-        	int b_v_k = placementHelper.getBeta(vm);
+        	int b_v_k = placementHelper.isLeased(vm);
 
         	//Constraint 20
             Linear linear = new Linear();
@@ -353,8 +351,8 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
             }
             
             Date enactDeadl = new Date(enactmentDeadline);
-            System.out.println("EnactmentDeadline: "+ enactDeadl + ", tau_t :" + tau_t + " of Workflow "+ workflowInstance.getName());
-    		System.out.println("******* Coefficient for Term 6 was: " + coefficient + " For diff: " + diffInMinutes + " For WorkflowDeadline: " + workflowInstance.getDeadline()+ " of Workflow "+ workflowInstance.getName());
+//            System.out.println("EnactmentDeadline: "+ enactDeadl + ", tau_t :" + tau_t + " of Workflow "+ workflowInstance.getName());
+//    		System.out.println("******* Coefficient for Term 6 was: " + coefficient + " For diff: " + diffInMinutes + " For WorkflowDeadline: " + workflowInstance.getDeadline()+ " of Workflow "+ workflowInstance.getName());
 
     		for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
             	for (Element step : nextSteps.get(workflowInstance.getName())) {
@@ -458,7 +456,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
             
            String decisionVariableY = placementHelper.getDecisionVariableY(vm);
            linear.add(-M, decisionVariableY);
-           int beta = placementHelper.getBeta(vm);
+           int beta = placementHelper.isLeased(vm);
            problem.add(linear, "<=", beta * M);
         }
     }
@@ -510,7 +508,6 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
             	String decisionVariableX = placementHelper.getDecisionVariableX(step, vm);
                 double requiredCPUPoints = placementHelper.getRequiredCPUPoints((ProcessStep) step);
                 linear.add(requiredCPUPoints, decisionVariableX);
-
                 double requiredRAMPoints = placementHelper.getRequiredRAMPoints((ProcessStep) step);
                 linear2.add(requiredRAMPoints, decisionVariableX);
             }
@@ -562,7 +559,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         	String g_v_k = placementHelper.getGVariable(vm);
             Linear linear = new Linear();
             linear.add(1, g_v_k);
-            problem.add(linear, Operator.GE, placementHelper.getBeta(vm));
+            problem.add(linear, Operator.GE, placementHelper.isLeased(vm));
             
         }
     }
@@ -592,7 +589,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
             Linear linear = new Linear();
             linear.add(1, g_v_k);
             linear.add(-1, y_v_k);
-            problem.add(linear, Operator.LE, placementHelper.getBeta(vm));
+            problem.add(linear, Operator.LE, placementHelper.isLeased(vm));
             
         }
     }
@@ -611,7 +608,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
                 long remainingExecutionTime = ((ProcessStep) step).getRemainingExecutionTime(tau_t);
                 long serviceDeployTime = SERVICE_DEPLOY_TIME;
                 serviceDeployTime = vm.getDeployTime();
-                int i = 1 - placementHelper.getBeta(vm);
+                int i = 1 - placementHelper.isLeased(vm);
                 remainingExecutionTime = remainingExecutionTime / 1000;
                 serviceDeployTime = serviceDeployTime / 1000;
                 String type = ((ProcessStep) step).getServiceType().name();
@@ -1094,7 +1091,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     }
 
 	private String getAllObjectives(Result optimize) {
-//		System.out.println("\n Term 1 \n");
+		System.out.println("\n Term 1: vm leasing costs");
 		double sum1 = 0;
 
 		for (VMType vmType : cacheVirtualMachineService.getVMTypes()) {
@@ -1103,9 +1100,9 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 			sum1 += vmType.getCosts() * c;
 		}
 
-//		System.out.println("Value: " + sum1);
+		System.out.println("Value: " + sum1);
 
-//		System.out.println("\n Term 2 \n");
+		System.out.println("\n Term 2: penalty costs");
 		double sum2 = 0;
 		double sum4 = 0;
 		for (WorkflowElement workflowInstance : getNextWorkflowInstances()) {
@@ -1123,13 +1120,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 															// 1000;
 			double enactmentDeadlineSmall = enactmentDeadline / 1000;
 			double tauSmall = tau_t.getTime() / 1000;
-			double diffInMinutes = (enactmentDeadlineSmall - tauSmall); // diff
-																		// in
-																		// secs!?
-																		// (((deadlineSmall
-																		// - 60
-																		// -
-																		// tauSmall)));
+			double diffInMinutes = (enactmentDeadlineSmall - tauSmall); // diff in secs!? (((deadlineSmall - 60 - tauSmall)));
 			Double coefficient = 1.0 / diffInMinutes;
 			if (Double.isInfinite(coefficient) || coefficient <= 0) {
 				coefficient = 100.0 - diffInMinutes;
@@ -1145,9 +1136,9 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 			}
 		}
 
-//		System.out.println("Value: " + sum2);
+		System.out.println("Value: " + sum2);
 
-//		System.out.println("\n Term 3 \n");
+		System.out.println("\n Term 3: free VM Ressources");
 		double sum3 = 0;
 
 		// Term 3
@@ -1158,12 +1149,19 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
 			double fr = optimize.get(fValueR).doubleValue();
 			sum3 += OMEGA_F_C_VALUE * fc;
 			sum3 += OMEGA_F_R_VALUE * fr;
+			
+			String decVarY = placementHelper.getDecisionVariableY(vm);
+			double y = optimize.get(decVarY).doubleValue();
+			long d_v_k = placementHelper.getRemainingLeasingDuration(tau_t, vm) / 1000;
+        	System.out.println("Remaining leasing duration: " +d_v_k+ " seconds, for VM " + vm.getName() +", startedAt: "+vm.getStartedAt() + ", scheduled for shutdown: "+vm.getToBeTerminatedAt() + ", additional BTUs to Lease: " + y);
+        	
+	
 		}
 
-//		System.out.println("Value: " + sum3);
+		System.out.println("Value: " + sum3);
 
-//		System.out.println("\n Term 4 \n");
-//		System.out.println("Value: " + sum4);
+		System.out.println("\n Term 4 preference for steps closer to Deadline");
+		System.out.println("Value: " + sum4);
 		
 		return "\n Sum : "+ (sum1+sum2+sum3+sum4);
 	}

@@ -4,6 +4,8 @@ import java.util.Date;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import jnr.ffi.Struct.time_t;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -17,8 +19,9 @@ public class TimeUtil extends Thread {
 	public static final AtomicBoolean STARTED = new AtomicBoolean();
 	public static final AtomicBoolean RUNNING = new AtomicBoolean();
 
-	public static final long TIME_INCREMENTS_MS = 1000;
-	public static long SEC_SLEEP_TIME_MS = 50;
+	public static final long TIME_INCREMENTS_MS = 100;
+	public static final AtomicLong SEC_SLEEP_TIME_MS = new AtomicLong(10);
+	private static long TICK_OUTPUT_BATCH = 10 * 1000 / TIME_INCREMENTS_MS;
 
 	private static TimeUtil INSTANCE;
 
@@ -42,16 +45,18 @@ public class TimeUtil extends Thread {
 		}
     	while(true) {
     		if(RUNNING.get()) {
-    			int tickOutputBatch = 10;
-    			if((TIME.get() / 1000) % tickOutputBatch == 0) {
-            		System.out.println(tickOutputBatch + " ticks passed");
+    			if((TIME.get() / TIME_INCREMENTS_MS) % TICK_OUTPUT_BATCH == 0) {
+    				if(simulate) {
+    					System.out.println(TICK_OUTPUT_BATCH + " ticks passed (simulate: " + simulate + ")");
+    				}
     			}
         		synchronized (TIME) {
-    				TIME.set(TIME.get() + TIME_INCREMENTS_MS);
+        			long delta = TIME_INCREMENTS_MS;
+    				TIME.set(TIME.get() + delta);
     				TIME.notifyAll();
     			}
     		}
-    		doSleepSafe(SEC_SLEEP_TIME_MS);
+    		doSleepSafe(SEC_SLEEP_TIME_MS.get());
     	}
     }
 
@@ -114,6 +119,18 @@ public class TimeUtil extends Thread {
     	RUNNING.set(false);
     }
 
+    public static void setRealTime() {
+    	setSpeed(1);
+    }
+
+    public static void setFastTicking() {
+    	setSpeed(20);
+    }
+
+    public static void setSpeed(double speed){
+    	SEC_SLEEP_TIME_MS.set((long)(TIME_INCREMENTS_MS / speed));
+    }
+    
     public static long now() {
     	ensureInstance();
     	if(!INSTANCE.simulate || TIME.get() < 0) {

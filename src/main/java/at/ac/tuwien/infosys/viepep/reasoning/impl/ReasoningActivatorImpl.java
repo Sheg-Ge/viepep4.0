@@ -4,6 +4,7 @@ import at.ac.tuwien.infosys.viepep.database.inmemory.database.InMemoryCacheImpl;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheDockerService;
 import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheVirtualMachineService;
 import at.ac.tuwien.infosys.viepep.reasoning.ReasoningActivator;
+import at.ac.tuwien.infosys.viepep.util.ProfileUtil;
 import at.ac.tuwien.infosys.viepep.util.TimeUtil;
 import lombok.extern.slf4j.Slf4j;
 
@@ -12,7 +13,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.concurrent.Future;
 
 /**
@@ -31,6 +34,8 @@ public class ReasoningActivatorImpl implements ReasoningActivator {
     private CacheDockerService cacheDockerService;
     @Autowired
     private InMemoryCacheImpl inMemoryCache;
+    @Autowired
+    private ProfileUtil profileUtil;
     
     @Value("${reasoner.autoTerminate}")
     private boolean autoTerminate;
@@ -44,12 +49,14 @@ public class ReasoningActivatorImpl implements ReasoningActivator {
 
         inMemoryCache.clear();
 
-        if(useDocker) {
+        if(profileUtil.isProfile("docker")) {
             cacheDockerService.initializeDockerContainers();
+            cacheVirtualMachineService.initializeVMs();
+        }else if(profileUtil.isProfile("dockerLight")){
+            cacheVirtualMachineService.initializeVMs(cacheDockerService);
+        }else if(profileUtil.isProfile("basic")){
+            cacheVirtualMachineService.initializeVMs();
         }
-        
-        cacheVirtualMachineService.initializeVMs();
-        
     }
 
     @Override

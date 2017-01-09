@@ -52,6 +52,26 @@ public class CacheVirtualMachineService {
     		e.printStackTrace();
     	}
     }
+    
+    public void initializeVMs(CacheDockerService cacheDockerService) {
+    	try {
+    		for (int v = 1; v <= V; v++) {
+    			VMType vmType = VMType.fromIdentifier(v);
+
+    			for(int k = 1; k <= K; k++) {  
+    				VirtualMachine virtualMachine = new VirtualMachine(v + "_" + k, vmType);
+    				virtualMachine.setStartupTime(defaultStartupTime);
+    				virtualMachine.setDeployTime(defaultDeployTime);
+    				cacheDockerService.initializeDockerContainers(virtualMachine);
+    				inMemoryCache.addVirtualMachine(virtualMachine);
+    			}
+    		}
+    	}catch(Exception e) {
+    		e.printStackTrace();
+    	}
+		
+	}
+    
     public Set<VMType> getVMTypes() {
         return inMemoryCache.getVMMap().keySet();
     }

@@ -11,6 +11,7 @@ import ilog.cplex.IloCplex.IntParam;
 import ilog.cplex.IloCplex.LongParam;
 import ilog.cplex.IloCplex.Status;
 import ilog.cplex.IloCplex.StringParam;
+import lombok.extern.slf4j.Slf4j;
 import net.sf.javailp.*;
 
 import java.util.HashMap;
@@ -20,6 +21,7 @@ import java.util.Map.Entry;
 /**
  * Created by Philipp Hoenisch on 8/20/14. Modified by Gerta Sheganaku
  */
+@Slf4j
 public class ViePEPSolverCPLEX extends SolverCPLEX {
 
     public static final Map<Object,Object> CPLEX_PARAMS = new HashMap<>();
@@ -162,7 +164,9 @@ public class ViePEPSolverCPLEX extends SolverCPLEX {
 
             if(cplex.getStatus() != Status.Optimal) {
                 System.out.println("\n##### ----- CPLEX SOLVER STATUS: "+ cplex.getStatus()+"\n");
+                log.error("##### ----- CPLEX SOLVER STATUS: "+ cplex.getStatus());
             }
+            
             //System.out.println("........ Cplex status: "+ cplex.getCplexStatus());
             //System.out.println("........ Cplex substatus: " + cplex.getCplexSubStatus());
             //System.out.println("........ solver status: "+ cplex.getStatus());

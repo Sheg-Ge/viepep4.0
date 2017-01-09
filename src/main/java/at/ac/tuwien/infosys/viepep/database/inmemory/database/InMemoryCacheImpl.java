@@ -108,12 +108,14 @@ public class InMemoryCacheImpl {
     	vmMap.get(vm.getVmType()).add(vm);
     }
     
+    @Deprecated //TODO: remove?
     public void addDockerContainers(List<DockerContainer> dockerContainers) {
     	for(DockerContainer dockerContainer : dockerContainers) {
     		addDockerContainer(dockerContainer);
     	}
     }
     
+    @Deprecated //TODO: remove?
     public void addVirtualMachines(List<VirtualMachine> virtualMachines) {
     	for(VirtualMachine vm : virtualMachines) {
     		addVirtualMachine(vm);

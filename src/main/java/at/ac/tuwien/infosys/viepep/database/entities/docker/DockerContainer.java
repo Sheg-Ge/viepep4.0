@@ -1,19 +1,18 @@
 package at.ac.tuwien.infosys.viepep.database.entities.docker;
 
-import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
-
-import javax.persistence.*;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
+
+import javax.persistence.Embedded;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
 
 import lombok.Getter;
 import lombok.Setter;
+import at.ac.tuwien.infosys.viepep.database.entities.VirtualMachine;
 
 /**
  */
@@ -28,7 +27,7 @@ public class DockerContainer {
     @GeneratedValue
     private Long id;
 
-    @Enumerated(EnumType.STRING)
+    @Embedded
     private DockerConfiguration containerConfiguration;
 
     @ManyToOne
@@ -39,8 +38,12 @@ public class DockerContainer {
     @ManyToOne
     private VirtualMachine virtualMachine;
     
+    @ManyToOne
+    private VirtualMachine fixedVirtualMachine;
+    
     private Date startedAt;
     private boolean running = false;
+    private boolean deployed = false;
 
     private long startupTime;
     private long deployTime;
@@ -51,6 +54,12 @@ public class DockerContainer {
     private DockerContainer() {
     }
 
+    public DockerContainer(DockerImage dockerImage, VirtualMachine vm) {
+        this.dockerImage = dockerImage;
+        this.fixedVirtualMachine = vm;
+        this.virtualMachine = vm;
+    }
+    
     public DockerContainer(DockerImage dockerImage, DockerConfiguration containerConfiguration, int number) {
         this.containerConfiguration = containerConfiguration;
         this.dockerImage = dockerImage;
@@ -66,7 +75,11 @@ public class DockerContainer {
     }
 
     public String getName() {
-        return containerConfiguration.name() + "_" + this.dockerImage.getServiceName()+"_"+number;
+    	if(containerConfiguration == null || containerConfiguration.getName()==null){
+    		return virtualMachine.getName()+ "_" + this.dockerImage.getServiceName();
+    	}else{
+    		return containerConfiguration.getName() + "_" + this.dockerImage.getServiceName()+"_"+number;
+    	}
     }
 
 	public DockerConfiguration getContainerConfiguration() {
@@ -130,8 +143,9 @@ public class DockerContainer {
     }
 
     public void shutdownContainer() {
-    	virtualMachine = null;
+//    	virtualMachine = null;
     	running = false;
+    	deployed = false;
     	startedAt = null;
     }
     
@@ -140,7 +154,13 @@ public class DockerContainer {
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
         String startString = startedAt == null ? "NOT_YET" : simpleDateFormat.format(startedAt);
-        String vmString = virtualMachine == null ? "NOT_YET" : virtualMachine.getName();
+        String vmString = null;
+        if(fixedVirtualMachine != null){
+        	vmString = fixedVirtualMachine.getName();
+        }else{
+        	vmString = virtualMachine == null ? "NOT_YET" : virtualMachine.getName();
+        }
+        		
         return "DockerContainer{" +
                 "id=" + id +
                 ", name='" + getName() + '\'' +
@@ -149,17 +169,17 @@ public class DockerContainer {
                 ", running on VM =" + vmString +
                 '}';
     }
-    
-    @Override
+
+	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = getName().hashCode();
-		result += prime * result
+		result = prime * result
 				+ ((containerID == null) ? 0 : containerID.hashCode());
 		result = prime * result
 				+ ((dockerImage == null) ? 0 : dockerImage.hashCode());
-		result = prime * result + ((id == null) ? 0 : id.hashCode());
+		result = prime * result
+				+ ((virtualMachine == null) ? 0 : virtualMachine.hashCode());
 		return result;
 	}
 
@@ -182,20 +202,60 @@ public class DockerContainer {
 				return false;
 		} else if (!dockerImage.equals(other.dockerImage))
 			return false;
-		if (id == null) {
-			if (other.id != null)
+		if (virtualMachine == null) {
+			if (other.virtualMachine != null)
 				return false;
-		} else if (!id.equals(other.id))
-			return false;
-
-		//  also consider the name here:
-		String otherName = other.getName();
-		String thisName = this.getName();
-		if (thisName == null) {
-			if (otherName != null)
-				return false;
-		} else if (!thisName.equals(otherName))
+		} else if (!virtualMachine.equals(other.virtualMachine))
 			return false;
 		return true;
 	}
+    
+//    @Override
+//	public int hashCode() {
+//		final int prime = 31;
+//		int result = 1;
+//		result = getName().hashCode();
+//		result += prime * result
+//				+ ((containerID == null) ? 0 : containerID.hashCode());
+//		result = prime * result
+//				+ ((dockerImage == null) ? 0 : dockerImage.hashCode());
+//		result = prime * result + ((id == null) ? 0 : id.hashCode());
+//		return result;
+//	}
+//
+//	@Override
+//	public boolean equals(Object obj) {
+//		if (this == obj)
+//			return true;
+//		if (obj == null)
+//			return false;
+//		if (getClass() != obj.getClass())
+//			return false;
+//		DockerContainer other = (DockerContainer) obj;
+//		if (containerID == null) {
+//			if (other.containerID != null)
+//				return false;
+//		} else if (!containerID.equals(other.containerID))
+//			return false;
+//		if (dockerImage == null) {
+//			if (other.dockerImage != null)
+//				return false;
+//		} else if (!dockerImage.equals(other.dockerImage))
+//			return false;
+//		if (id == null) {
+//			if (other.id != null)
+//				return false;
+//		} else if (!id.equals(other.id))
+//			return false;
+//
+//		//  also consider the name here:
+//		String otherName = other.getName();
+//		String thisName = this.getName();
+//		if (thisName == null) {
+//			if (otherName != null)
+//				return false;
+//		} else if (!thisName.equals(otherName))
+//			return false;
+//		return true;
+//	}
 }
