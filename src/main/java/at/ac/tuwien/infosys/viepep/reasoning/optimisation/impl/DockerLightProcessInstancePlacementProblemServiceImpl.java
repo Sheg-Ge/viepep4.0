@@ -54,8 +54,10 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
     private static final double EXTERNAL_CLOUD_FACTOR = 1; //not considered
     
     private static final double OMEGA_F_R_VALUE = 0.001; //0.0001
-    private static final double OMEGA_F_C_VALUE = 0.01; //0.0001
+    private static final double OMEGA_F_C_VALUE = 0.001; //0.0001
+    private static final double OMEGA_DEADLINE_VALUE = 0.001;
     private static final double PREFER_LONGER_LEASED_VMS = 0.001; // 0.000001;
+    private static final double MAX_BTU = 100;
 
     private static final double OMEGA_DEPLOY_D_VALUE = 1; // 0.001; //CHECK only a weight for actual deploy value
 
@@ -68,6 +70,9 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
 
     @Value("${dockercontainer.deploy.time}")
     private long CONTAINER_DEPLOY_TIME; //30000L
+    
+    @Value("${dockercontainer.startup.time}")
+    private long CONTAINER_STARTUP_TIME; //3000L    
 
     @Value("${dockercontainer.deploy.cost}")
     private long CONTAINER_DEPLOY_COST; //30000L
@@ -118,7 +123,7 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
 
         Solver solver = new ViePEPSolverCPLEX(); // factory.get();
 
-        log.info(printCollections());
+        log.warn(printCollections());
 
         problem = new Problem();
         addObjective_1(problem);
@@ -128,12 +133,12 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
         addConstraint_12_16(problem);
         addConstraint_15_19(problem);
         
-        addConstraint_20_to_25(problem);
-//        addConstraint_18(problem);
-//        addConstraint_19(problem);
-//        addConstraint_20(problem);
+//        addConstraint_20_to_25(problem);
+        addConstraint_18(problem);
+        addConstraint_19(problem);
+        addConstraint_20(problem);
         
-//        addConstraint_27(problem);
+        addConstraint_27a(problem);
         addConstraint_33_to_36(problem);
         addConstraint_37(problem);
         addConstraint_38(problem);
@@ -314,40 +319,50 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
             linear.add(placementHelper.getPenaltyCostPerQoSViolationForProcessInstance(workflowInstance), executionTimeViolation);
 //            System.out.println("******************************** TERM 2 penalty cost: " + placementHelper.getPenaltyCostPerQoSViolationForProcessInstance(workflowInstance) + " execTimeViolation: "+ executionTimeViolation);
 
-            //Term 5
-            long enactmentDeadline = placementHelper.getEnactmentDeadline(workflowInstance);//getDeadline() / 1000;
-            double enactmentDeadlineSmall = enactmentDeadline / 1000;
-            double tauSmall = tau_t.getTime() / 1000;
-            double diffInSeconds = (enactmentDeadlineSmall - tauSmall);
-            Double coefficient = 1.0 / diffInSeconds;
-            if (Double.isInfinite(coefficient) || coefficient <= 0) {
-                coefficient = 100.0 - diffInSeconds; 
-            }
-            
-            Date enactDeadl = new Date(enactmentDeadline);
+//            //Term 6
+//            long enactmentDeadline = placementHelper.getEnactmentDeadline(workflowInstance);//getDeadline() / 1000;
+//            double enactmentDeadlineSmall = enactmentDeadline / 1000;
+//            double tauSmall = tau_t.getTime() / 1000;
+//            double diffInSeconds = (enactmentDeadlineSmall - tauSmall);
+//            Double coefficient = 1.0 / diffInSeconds;
+//            if (Double.isInfinite(coefficient) || coefficient <= 0) {
+//                coefficient = 100.0 - diffInSeconds; 
+//            }
+
+//            Date enactDeadl = new Date(enactmentDeadline);
 //            System.out.println("EnactmentDeadline: "+ enactDeadl + ", tau_t :" + tau_t + " of Workflow "+ workflowInstance.getName());
 //    		System.out.println("******* Coefficient for Term 6 was: " + coefficient + " For diff: " + diffInMinutes + " For WorkflowDeadline: " + workflowInstance.getDeadline()+ " of Workflow "+ workflowInstance.getName());
 
             for (ProcessStep step : nextSteps.get(workflowInstance.getName())) {
+            	 //Term 6
+            	
+            	long exeDur = getOverallRemainingExecutionTimeWorstCase(workflowInstance);
+                long enactmentDeadline = placementHelper.getEnactmentDeadline(workflowInstance) - exeDur;//getDeadline() / 1000;
+                System.out.println("Exe dur: "+ exeDur + " enact Deadline: " + enactmentDeadline);
+                double enactmentDeadlineSmall = enactmentDeadline / 1000;
+                double tauSmall = tau_t.getTime() / 1000;
+            	
+            	
                 for(VirtualMachine virtualMachine : cacheVirtualMachineService.getAllVMs()){
             		String decisionVariableX = placementHelper.getDecisionVariableX(step, virtualMachine);
-            		linear.add(-1 * coefficient, decisionVariableX);
+            		linear.add((enactmentDeadlineSmall - tauSmall) * OMEGA_DEADLINE_VALUE, decisionVariableX);
 //                    System.out.println("******************************** TERM 6 -1*coeff: "+ (-1 * coefficient) + " varX: "+ decisionVariableX + " Container: " + container.getName() + " step: " + step.getName());
             		
             		//TERM 3:
                     if (!placementHelper.imageForStepEverDeployedOnVM(step, virtualMachine)) {
-    					linear.add(CONTAINER_DEPLOY_COST * OMEGA_DEPLOY_D_VALUE, decisionVariableX);
+    					linear.add((double)CONTAINER_DEPLOY_COST * OMEGA_DEPLOY_D_VALUE, decisionVariableX);
 //    		            System.out.println("******************************** TERM 3 deployCostForContainer*Omega: "+ (dockerContainer.getDeployCost() * OMEGA_DEPLOY_D_VALUE) + " VarA "+ decisionVariableA);
     				}
                     
+                    //TERM 4:
                     long d_v_k = placementHelper.getRemainingLeasingDuration(tau_t, virtualMachine) / 1000;
                     // System.out.println("?!?!?!?! " + (-1.0 * PREFER_LONGER_LEASED_VMS * (double)d_v_k));
-                    linear.add(-1.0 * PREFER_LONGER_LEASED_VMS * (double)d_v_k, decisionVariableX);
+                    linear.add(1.0 * PREFER_LONGER_LEASED_VMS * (double)d_v_k, decisionVariableX);
                 }
             }
         }
 
-        //Term 4
+        //Term 5
         for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
         	String fValueC = placementHelper.getFValueCVariable(vm);
             String fValueR = placementHelper.getFValueRVariable(vm); //todo add me again if ram is considered
@@ -374,28 +389,58 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
     private void addConstraint_2(Problem problem) {
         final List<WorkflowElement> nextWorkflowInstances = getRunningWorkflowInstances();
         for (final WorkflowElement workflowInstance : nextWorkflowInstances) {
-            Linear linear = new Linear();
             String executionTimeWorkflowVariable = placementHelper.getExecutionTimeVariable(workflowInstance);
             String executionTimeViolation = placementHelper.getExecutionTimeViolationVariable(workflowInstance);
-            linear.add(1, "tau_t_1");
+            
+            long deadline = (workflowInstance.getDeadline() / 1000) - START_EPOCH; //- maxRemainingExecutionTime / 1000;
+            long totalRemainingExecutionTimeAndDeployTimesRunning = 0;
+            List<ProcessStep> steps = getRunningStepsForWorkflow(workflowInstance.getName());
+            for (ProcessStep step : steps) {
+            	totalRemainingExecutionTimeAndDeployTimesRunning += getRemainingExecutionTimeAndDeployTimes(step) / 1000;
+            }
+
+            Linear linear = new Linear();
             linear.add(1, executionTimeWorkflowVariable);
             linear.add(-1, executionTimeViolation);
+            problem.add(linear, "<=", deadline - (tau_t_startepoch.getTime() / 1000) - totalRemainingExecutionTimeAndDeployTimesRunning);
             
-//            List<Element> runningStepsForWorkflow = getRunningStepsForWorkflow(workflowInstance.getName());
-//            long maxRemainingExecutionTime = 0;
-//            for (Element runningStep : runningStepsForWorkflow) {
-//                maxRemainingExecutionTime = Math.max(maxRemainingExecutionTime, getRemainingExecutionTimeAndDeployTimes(runningStep));
-//            }
-
-            long rhs = (workflowInstance.getDeadline() / 1000) - START_EPOCH; //- maxRemainingExecutionTime / 1000;
-            problem.add(linear, "<=", rhs);
-            
-//            System.out.println("******************************** CONSTRAINT 2 for workflowelement: " + workflowInstance.getName() +" :: ");
-//            System.out.println("LHS: 1*tau_t_1 + 1*"+executionTimeWorkflowVariable +" <= 1*"+executionTimeViolation +" + "+rhs );
-
+            Linear linear2 = new Linear();
+            linear2.add(1, "tau_t_1");
+            linear2.add(1, executionTimeWorkflowVariable);
+            linear2.add(-1, executionTimeViolation);
+            problem.add(linear2, "<=", deadline);
 
         }
     }
+    
+    /**
+     * @param problem to be solved
+     */
+//    private void addConstraint_2(Problem problem) {
+//        final List<WorkflowElement> nextWorkflowInstances = getRunningWorkflowInstances();
+//        for (final WorkflowElement workflowInstance : nextWorkflowInstances) {
+//            Linear linear = new Linear();
+//            String executionTimeWorkflowVariable = placementHelper.getExecutionTimeVariable(workflowInstance);
+//            String executionTimeViolation = placementHelper.getExecutionTimeViolationVariable(workflowInstance);
+//            linear.add(1, "tau_t_1");
+//            linear.add(1, executionTimeWorkflowVariable);
+//            linear.add(-1, executionTimeViolation);
+//            
+////            List<Element> runningStepsForWorkflow = getRunningStepsForWorkflow(workflowInstance.getName());
+////            long maxRemainingExecutionTime = 0;
+////            for (Element runningStep : runningStepsForWorkflow) {
+////                maxRemainingExecutionTime = Math.max(maxRemainingExecutionTime, getRemainingExecutionTimeAndDeployTimes(runningStep));
+////            }
+//
+//            long rhs = (workflowInstance.getDeadline() / 1000) - START_EPOCH; //- maxRemainingExecutionTime / 1000;
+//            problem.add(linear, "<=", rhs);
+//            
+////            System.out.println("******************************** CONSTRAINT 2 for workflowelement: " + workflowInstance.getName() +" :: ");
+////            System.out.println("LHS: 1*tau_t_1 + 1*"+executionTimeWorkflowVariable +" <= 1*"+executionTimeViolation +" + "+rhs );
+//
+//
+//        }
+//    }
 
     /**
      * next optimization step has to be bigger than the last one
@@ -467,8 +512,8 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
             Linear linear2 = new Linear(); //add me if ram is considered
             for (ProcessStep step : steps) {
             	String decisionVariableX = placementHelper.getDecisionVariableX(step, vm);
-                linear.add(-placementHelper.getRequiredCPUPoints((ProcessStep) step), decisionVariableX);
-                linear2.add(-placementHelper.getRequiredRAMPoints((ProcessStep) step), decisionVariableX); //add me if ram is considered
+                linear.add(-1 * placementHelper.getRequiredCPUPoints((ProcessStep) step), decisionVariableX);
+                linear2.add(-1 * placementHelper.getRequiredRAMPoints((ProcessStep) step), decisionVariableX); //add me if ram is considered
             }
 
             if (!steps.isEmpty()) {
@@ -476,8 +521,8 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
 	            double suppliedRAMPoints = placementHelper.getSuppliedRAMPoints(vm);
 
 	            String helperVariableG = placementHelper.getGVariable(vm);
-	            linear.add(suppliedCPUPoints, helperVariableG);
-	            linear2.add(suppliedRAMPoints, helperVariableG); //add me if ram is considered
+	            linear.add(1 * suppliedCPUPoints, helperVariableG);
+	            linear2.add(1 * suppliedRAMPoints, helperVariableG); //add me if ram is considered
 
 	            String fValueC = placementHelper.getFValueCVariable(vm);
 	            linear.add(-1, fValueC);
@@ -640,7 +685,7 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
             //Constraint 21
             Linear linear1 = new Linear();
             linear1.add(1, y_v_k);
-            linear1.add(-1 * Integer.MAX_VALUE, g_v_k);
+            linear1.add(-1 * MAX_BTU, g_v_k);
             problem.add(linear1, Operator.LE, -1*b_v_k);
             
         }
@@ -657,9 +702,9 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
             	String decisionVariable = placementHelper.getDecisionVariableX(step, vm);
             	linear.add(1, decisionVariable);
            }
-            
-           String decisionVariableY = placementHelper.getDecisionVariableY(vm);
-           linear.add(-M, decisionVariableY);
+           
+           String variableG = placementHelper.getGVariable(vm); 
+           linear.add(-M, variableG);
            int beta = placementHelper.isLeased(vm);
            problem.add(linear, "<=", beta * M);
         }
@@ -1074,7 +1119,8 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
      */
     public List<WorkflowElement> getRunningWorkflowInstances() {
         if (nextWorkflowInstances == null) {
-            nextWorkflowInstances = Collections.synchronizedList(new ArrayList<WorkflowElement>(cacheWorkflowService.getRunningWorkflowInstances()));
+            nextWorkflowInstances = Collections.synchronizedList(new ArrayList<WorkflowElement>(
+            		cacheWorkflowService.getRunningWorkflowInstances()));
         }
         return nextWorkflowInstances;
     }
@@ -1084,7 +1130,8 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
 
         if(nextSteps.isEmpty()){
         	for (WorkflowElement workflow : getRunningWorkflowInstances()) {
-        		List<ProcessStep> nextStepsOfWorkflow = Collections.synchronizedList(new ArrayList<ProcessStep>(placementHelper.getNextSteps(workflow.getName())));
+        		List<ProcessStep> nextStepsOfWorkflow = Collections.synchronizedList(
+        				new ArrayList<ProcessStep>(placementHelper.getNextSteps(workflow.getName())));
                 nextSteps.put(workflow.getName(), nextStepsOfWorkflow);
             }
         }
@@ -1108,7 +1155,7 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
         return runningSteps.get(workflowInstanceID);
     }
 
-    public List<ProcessStep> getAllRunningSteps() {
+    private List<ProcessStep> getAllRunningSteps() {
         if (allRunningSteps == null) {
             allRunningSteps = new ArrayList<>();
             List<WorkflowElement> nextWorkflowInstances = getRunningWorkflowInstances();
@@ -1120,7 +1167,7 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
         return allRunningSteps;
     }
 
-    public List<ProcessStep> getNextAndRunningSteps() {
+    private List<ProcessStep> getNextAndRunningSteps() {
         List<ProcessStep> steps = getAllNextStepsAsList();
         List<ProcessStep> runningSteps = getAllRunningSteps();
         for (ProcessStep step : runningSteps) {
@@ -1196,7 +1243,7 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
             remainingExecutionTime += placementHelper.getRemainingSetupTime(processStep.getScheduledAtContainer(), tau_t);
         }
         else {
-            remainingExecutionTime += CONTAINER_DEPLOY_TIME + VM_STARTUP_TIME;
+            remainingExecutionTime += CONTAINER_STARTUP_TIME + CONTAINER_DEPLOY_TIME + VM_STARTUP_TIME;
         }
         if (remainingExecutionTime < 0) {
             remainingExecutionTime = 0;
@@ -1284,14 +1331,53 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
             generateConstraintsForCalculatingExecutionTime(subElement, linearForSubElement, problem,
                     -((LoopConstruct) elem).getNumberOfIterationsInWorstCase(), nextStepIds);
             problem.add(linearForSubElement, ">=", 0);
+        } else {
+    		throw new RuntimeException("Unexpected element: " + elem);
         }
-
     }
+
+	public long getOverallRemainingExecutionTimeWorstCase(Element elem) {
+		if (elem instanceof WorkflowElement) {
+			return getOverallRemainingExecutionTimeWorstCase(elem.getElements().get(0));
+		} else if (elem instanceof ProcessStep) {
+			if (!((ProcessStep) elem).hasBeenExecuted()) {
+				long remainingExecutionTimeAndDeployTimes = getRemainingExecutionTimeAndDeployTimes((ProcessStep) elem);
+				return remainingExecutionTimeAndDeployTimes;
+			}
+			return 0;
+		} else if (elem instanceof Sequence) {
+			long time = 0;
+			for(Element e : elem.getElements()) {
+				time += getOverallRemainingExecutionTimeWorstCase(e);
+			}
+			return time;
+		} else if ((elem instanceof ANDConstruct) || (elem instanceof XORConstruct)) {
+			long time = 0;
+			for(Element e : elem.getElements()) {
+				long thisTime = getOverallRemainingExecutionTimeWorstCase(e);
+				time = Math.max(time, thisTime);
+			}
+			return time;
+			
+		} else if (elem instanceof LoopConstruct) {
+			long worstIters = ((LoopConstruct) elem).getNumberOfIterationsInWorstCase();
+			long time = 0;
+			for(Element e : elem.getElements()) {
+				time += getOverallRemainingExecutionTimeWorstCase(e);
+			}
+			return worstIters * time;
+		}
+		throw new RuntimeException("Unexpected element: " + elem);
+	}
+    
+    
 
 //    @Override
     public Collection<Object> getVariables() {
         return this.problem.getVariables();
     }
+    
+    
     
 	private String getAllObjectives(Result optimize) {
 		System.out.println("\n Term 1: vm leasing costs");
@@ -1316,23 +1402,18 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
 			double cp = optimize.get(executionTimeViolation).doubleValue();
 			sum2 += placementHelper.getPenaltyCostPerQoSViolationForProcessInstance(workflowInstance) * cp;
 
-            //Term 6
-            long enactmentDeadline = placementHelper.getEnactmentDeadline(workflowInstance);//getDeadline() / 1000;
-            double enactmentDeadlineSmall = enactmentDeadline / 1000;
-            double tauSmall = tau_t.getTime() / 1000;
-            double diffInSeconds = (enactmentDeadlineSmall - tauSmall);
-            Double coefficient = 1.0 / diffInSeconds;
-            if (Double.isInfinite(coefficient) || coefficient <= 0) {
-                coefficient = 100.0 - diffInSeconds; 
-            }
-            
-            Date enactDeadl = new Date(enactmentDeadline);
-
             for (ProcessStep step : nextSteps.get(workflowInstance.getName())) {
+            	
+            	long exeDur = getOverallRemainingExecutionTimeWorstCase(workflowInstance);
+                long enactmentDeadline = placementHelper.getEnactmentDeadline(workflowInstance) - exeDur;//getDeadline() / 1000;
+                double enactmentDeadlineSmall = enactmentDeadline / 1000;
+                double tauSmall = tau_t.getTime() / 1000;
+            	
+            	
                 for(VirtualMachine virtualMachine : cacheVirtualMachineService.getAllVMs()){
-            		String decisionVariableX = placementHelper.getDecisionVariableX(step, virtualMachine);
+                	String decisionVariableX = placementHelper.getDecisionVariableX(step, virtualMachine);
 					int x = toInt(optimize.get(decisionVariableX));
-					sum6 += -1 * coefficient * x;
+					sum6 += (enactmentDeadlineSmall - tauSmall)*0.001 * x;
             		
             		//TERM 3:
                     if (!placementHelper.imageForStepEverDeployedOnVM(step, virtualMachine)) {
@@ -1341,7 +1422,7 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
                     
                     //TERM 4:
                     long d_v_k = placementHelper.getRemainingLeasingDuration(tau_t, virtualMachine) / 1000;
-                    sum4 += -1.0 * PREFER_LONGER_LEASED_VMS * (double)d_v_k * (double)x;
+                    sum4 += 1.0 * PREFER_LONGER_LEASED_VMS * (double)d_v_k * (double)x;
                 }
             }
         }
@@ -1353,7 +1434,7 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
 		System.out.println("Value: " + sum3);
 		
 		System.out.println("\n Term 4: preference for longer leased vms");
-		System.out.println("Value: " + sum4);
+		System.out.println("Value: " + sum4 + "\n\n");
 		
 		double sum5 = 0;
 

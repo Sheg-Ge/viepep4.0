@@ -83,7 +83,13 @@ public abstract class NativeLibraryLoader {
                     LOG.info("Extracting " + filename);
                     String[] splitted = filename.split(Pattern.quote("."));
                     String suffix = splitted[splitted.length-1];
-                    File destination = File.createTempFile(filename, "." + suffix);
+                    final File destination = File.createTempFile(filename, "." + suffix);
+                    // make sure we delete the temp. file on exit
+                    Runtime.getRuntime().addShutdownHook(new Thread() {
+                    	public void run() {
+                    		destination.delete();
+                    	}
+                    });
                     FileUtils.copyInputStreamToFile(in, destination);
 
                     LOG.info("Loading library " + destination.getAbsolutePath());

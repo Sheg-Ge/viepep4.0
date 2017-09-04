@@ -9,6 +9,7 @@ import at.ac.tuwien.infosys.viepep.database.entities.docker.DockerImage;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,12 +20,12 @@ import java.util.Set;
  */
 @Component
 public class InMemoryCacheImpl {
-    private List<WorkflowElement> runningWorkflows = new ArrayList<>();
-    private List<WorkflowElement> allWorkflowInstances = new ArrayList<>();
+    private List<WorkflowElement> runningWorkflows = Collections.synchronizedList(new ArrayList<>());
+    private List<WorkflowElement> allWorkflowInstances = Collections.synchronizedList(new ArrayList<>());
 //    private List<VirtualMachine> virtualMachines = new ArrayList<>();
 //    private Map<DockerContainer, List<DockerContainer>> dockerMap = new HashMap<>();
-    private Map<VMType, List<VirtualMachine>> vmMap = new HashMap<>();
-    private Map<DockerImage, List<DockerContainer>> dockerMap = new HashMap<>();
+    private Map<VMType, List<VirtualMachine>> vmMap = Collections.synchronizedMap(new HashMap<>());
+    private Map<DockerImage, List<DockerContainer>> dockerMap = Collections.synchronizedMap(new HashMap<>());
 //    private List<DockerImage> dockerImageList = new ArrayList<>();
 
 
@@ -85,7 +86,7 @@ public class InMemoryCacheImpl {
     private void addDockerImage(DockerImage dockerImage) {
     	dockerMap.put(dockerImage, new ArrayList<DockerContainer>());
     }
-    
+
     private void addVMType(VMType vmType) {
         vmMap.put(vmType, new ArrayList<VirtualMachine>());
     }
@@ -93,32 +94,23 @@ public class InMemoryCacheImpl {
 //    public void addToDockerMap(DockerContainer key, List<DockerContainer> dockerContainerList) {
 //        dockerMap.put(key, dockerContainerList);
 //    }
-    
+
     public void addDockerContainer(DockerContainer dockerContainer) {
-    	if(!dockerMap.containsKey(dockerContainer.getDockerImage())) {
-    		addDockerImage(dockerContainer.getDockerImage());
-    	}
-    	dockerMap.get(dockerContainer.getDockerImage()).add(dockerContainer);
+    	synchronized (dockerMap) {
+	    	if(!dockerMap.containsKey(dockerContainer.getDockerImage())) {
+	    		addDockerImage(dockerContainer.getDockerImage());
+	    	}
+	    	dockerMap.get(dockerContainer.getDockerImage()).add(dockerContainer);
+		}
     }
-    
+
     public void addVirtualMachine(VirtualMachine vm) {
-    	if(!vmMap.containsKey(vm.getVmType())) {
-    		addVMType(vm.getVmType());
-    	}
-    	vmMap.get(vm.getVmType()).add(vm);
+    	synchronized (vmMap) {
+        	if(!vmMap.containsKey(vm.getVmType())) {
+        		addVMType(vm.getVmType());
+        	}
+        	vmMap.get(vm.getVmType()).add(vm);
+		}
     }
-    
-    @Deprecated //TODO: remove?
-    public void addDockerContainers(List<DockerContainer> dockerContainers) {
-    	for(DockerContainer dockerContainer : dockerContainers) {
-    		addDockerContainer(dockerContainer);
-    	}
-    }
-    
-    @Deprecated //TODO: remove?
-    public void addVirtualMachines(List<VirtualMachine> virtualMachines) {
-    	for(VirtualMachine vm : virtualMachines) {
-    		addVirtualMachine(vm);
-    	}
-    }
+
 }

@@ -48,6 +48,10 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
     @Autowired
     private CacheDockerService cacheDockerService;
 
+
+    @Value("${dockercontainer.startup.time}")
+    private long CONTAINER_STARTUP_TIME; //3000L  
+    
 //    @Value("${optimization.use.internVms.first}")
 //    private boolean useInternVmsFirst;           // has to be true that the internal storage is filled first
 
@@ -352,27 +356,36 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 
             
             //Term 6
-            long enactmentDeadline = placementHelper.getEnactmentDeadline(workflowInstance);//getDeadline() / 1000;
-            double enactmentDeadlineSmall = enactmentDeadline / 1000;
-            double tauSmall = tau_t.getTime() / 1000;
-            double diffInSeconds = (enactmentDeadlineSmall - tauSmall);
-            Double coefficient = 1.0 / diffInSeconds;
-            if (Double.isInfinite(coefficient) || coefficient <= 0) {
-                coefficient = 100.0 - diffInSeconds; 
-            }
+//            long enactmentDeadline = placementHelper.getEnactmentDeadline(workflowInstance);//getDeadline() / 1000;
+//            double enactmentDeadlineSmall = enactmentDeadline / 1000;
+//            double tauSmall = tau_t.getTime() / 1000;
+//            double diffInSeconds = (enactmentDeadlineSmall - tauSmall);
+//            Double coefficient = 1.0 / diffInSeconds;
+//            if (Double.isInfinite(coefficient) || coefficient <= 0) {
+//                coefficient = 100.0 - diffInSeconds; 
+//            }
             
-            Date enactDeadl = new Date(enactmentDeadline);
+//            Date enactDeadl = new Date(enactmentDeadline);
 //            System.out.println("EnactmentDeadline: "+ enactDeadl + ", tau_t :" + tau_t + " of Workflow "+ workflowInstance.getName());
 //    		System.out.println("******* Coefficient for Term 6 was: " + coefficient + " For diff: " + diffInMinutes + " For WorkflowDeadline: " + workflowInstance.getDeadline()+ " of Workflow "+ workflowInstance.getName());
 
             for (ProcessStep step : nextSteps.get(workflowInstance.getName())) {
+            	//Term 5
+            	
+            	long exeDur = getOverallRemainingExecutionTimeWorstCase(workflowInstance);
+                long enactmentDeadline = placementHelper.getEnactmentDeadline(workflowInstance) - exeDur;//getDeadline() / 1000;
+                System.out.println("Exe dur: "+ exeDur + " enact Deadline: " + enactmentDeadline);
+                double enactmentDeadlineSmall = enactmentDeadline / 1000;
+                double tauSmall = tau_t.getTime() / 1000;
+            	
+            	
 //            	System.out.println("step: " + step);
 //            	System.out.println(cacheDockerService.getDockerImage(step));
 //            	System.out.println(cacheDockerService.getDockerImages());
 //            	System.out.println(cacheDockerService.getDockerContainers(step));
                 for(DockerContainer container : cacheDockerService.getDockerContainers(step)){
             		String decisionVariableX = placementHelper.getDecisionVariableX(step, container);
-            		linear.add(-1 * coefficient, decisionVariableX);
+            		linear.add(1 * (enactmentDeadlineSmall - tauSmall)*0.001, decisionVariableX);
 //                    System.out.println("******************************** TERM 6 -1*coeff: "+ (-1 * coefficient) + " varX: "+ decisionVariableX + " Container: " + container.getName() + " step: " + step.getName());
 
                 }
@@ -1626,7 +1639,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
             remainingExecutionTime += placementHelper.getRemainingSetupTime(processStep.getScheduledAtContainer(), tau_t);
         }
         else {
-            remainingExecutionTime += CONTAINER_DEPLOY_TIME + VM_STARTUP_TIME;
+            remainingExecutionTime += CONTAINER_STARTUP_TIME + CONTAINER_DEPLOY_TIME + VM_STARTUP_TIME;
         }
         if (remainingExecutionTime < 0) {
             remainingExecutionTime = 0;
@@ -1751,6 +1764,41 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
         }
 
     }
+    
+    
+	public long getOverallRemainingExecutionTimeWorstCase(Element elem) {
+		if (elem instanceof WorkflowElement) {
+			return getOverallRemainingExecutionTimeWorstCase(elem.getElements().get(0));
+		} else if (elem instanceof ProcessStep) {
+			if (!((ProcessStep) elem).hasBeenExecuted()) {
+				long remainingExecutionTimeAndDeployTimes = getRemainingExecutionTimeAndDeployTimes((ProcessStep) elem);
+				return remainingExecutionTimeAndDeployTimes;
+			}
+			return 0;
+		} else if (elem instanceof Sequence) {
+			long time = 0;
+			for(Element e : elem.getElements()) {
+				time += getOverallRemainingExecutionTimeWorstCase(e);
+			}
+			return time;
+		} else if ((elem instanceof ANDConstruct) || (elem instanceof XORConstruct)) {
+			long time = 0;
+			for(Element e : elem.getElements()) {
+				long thisTime = getOverallRemainingExecutionTimeWorstCase(e);
+				time = Math.max(time, thisTime);
+			}
+			return time;
+			
+		} else if (elem instanceof LoopConstruct) {
+			long worstIters = ((LoopConstruct) elem).getNumberOfIterationsInWorstCase();
+			long time = 0;
+			for(Element e : elem.getElements()) {
+				time += getOverallRemainingExecutionTimeWorstCase(e);
+			}
+			return worstIters * time;
+		}
+		throw new RuntimeException("Unexpected element: " + elem);
+	}
 
 //    @Override
     public Collection<Object> getVariables() {

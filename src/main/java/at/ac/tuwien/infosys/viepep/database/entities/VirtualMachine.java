@@ -3,6 +3,7 @@ package at.ac.tuwien.infosys.viepep.database.entities;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -69,11 +70,10 @@ public class VirtualMachine implements Serializable {
     private Date toBeTerminatedAt;
 
     @OneToMany(mappedBy="virtualMachine")
-    private List<DockerContainer> deployedContainers;
-    
+    private List<DockerContainer> deployedContainers = Collections.synchronizedList(new ArrayList<>());
 
     @OneToMany(mappedBy="fixedVirtualMachine")
-    private List<DockerContainer> containers;
+    private List<DockerContainer> containers = Collections.synchronizedList(new ArrayList<>());
 
     public VirtualMachine(String name, Integer numberCores, ServiceType serviceType, String location) {
         this.name = name;
@@ -109,37 +109,39 @@ public class VirtualMachine implements Serializable {
 
     public VirtualMachine() {
     }
-    
+
     public boolean isDockerDeployed(DockerContainer dockerContainer) {
-        if (deployedContainers == null) {
-            deployedContainers = new ArrayList<>();
-        }
-        return deployedContainers.contains(dockerContainer);
+    	return getDeployedContainers().contains(dockerContainer);
     }
 
-    public List<DockerContainer> getDeployedContainers() {
-        if (deployedContainers == null) {
-            deployedContainers = new ArrayList<>();
-        }
-        return deployedContainers;
+    public synchronized List<DockerContainer> getDeployedContainers() {
+    	if(deployedContainers == null) {
+    		return Collections.emptyList();
+    	}
+        return Collections.unmodifiableList(deployedContainers);
     }
-    
+
+    public synchronized List<DockerContainer> getContainers() {
+        return Collections.unmodifiableList(containers);
+    }
+
     public void deployDockerContainer(DockerContainer dockerContainer) {
-        if (deployedContainers == null) {
-            this.deployedContainers = new ArrayList<>();
+    	if (dockerContainer == null) {
+        	throw new IllegalArgumentException("Container cannot be null: " + dockerContainer);
         }
-        if (!deployedContainers.contains(dockerContainer)) {
-            deployedContainers.add(dockerContainer);
-        }
+    	synchronized (deployedContainers) {
+            if (!getDeployedContainers().contains(dockerContainer)) {
+                deployedContainers.add(dockerContainer);
+            }
+		}
     }
 
-    public void addDockerContainer(DockerContainer dockerContainer){
-    	if (containers == null) {
-            this.containers = new ArrayList<>();
-        }
-        if (!containers.contains(dockerContainer)) {
-            containers.add(dockerContainer);
-        }
+    public void addDockerContainer(DockerContainer dockerContainer) {
+    	synchronized (containers) {
+	    	if (!containers.contains(dockerContainer)) {
+	            containers.add(dockerContainer);
+	        }
+    	}
     }
     
     public void setToBeTerminatedAt(Date d) {
@@ -191,6 +193,14 @@ public class VirtualMachine implements Serializable {
     public String getURI() {
         return "http://" + this.ipAddress;
     }
+    
+    public ServiceType getServiceType(){
+    	return this.serviceType;
+    }
+    
+    public void setServiceType(ServiceType serviceType){
+    	this.serviceType = serviceType;
+    }
 
     public void terminate() {
         this.setLeased(false);
@@ -198,7 +208,7 @@ public class VirtualMachine implements Serializable {
         this.setStartedAt(null);
         this.setToBeTerminatedAt(null);
         this.serviceType = null;
-        this.deployedContainers = null;
+        this.deployedContainers = Collections.synchronizedList(new ArrayList<>());
     }
 
 	public DockerContainer getContainer(ProcessStep processStep) {

@@ -81,7 +81,7 @@ public class CacheDockerService {
     		}
     	}
     }
-   
+
     public void initializeDockerContainers(VirtualMachine virtualMachine) {
     	for (int st = 1; st <= SERVICE_TYPES; st++) {
 			DockerImage dockerImage = parseByServiceTypeId("service" + st);
@@ -123,7 +123,6 @@ public class CacheDockerService {
     	}
     	return allContainers;
     }
-    
 
     public Map<DockerImage, List<DockerContainer>> getDockerMap() {
     	return inMemoryCache.getDockerMap();

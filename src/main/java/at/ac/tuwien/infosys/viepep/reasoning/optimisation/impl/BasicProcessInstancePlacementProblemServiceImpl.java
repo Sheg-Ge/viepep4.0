@@ -121,13 +121,15 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         addConstraint_4(problem);
         addConstraint_12(problem);
         addConstraint_13(problem);
+        addConstraint_13b(problem);
+        
         addConstraint_14_16(problem);
         addConstraint_15_17(problem);
         
-//        addConstraint_18(problem);
-//        addConstraint_19(problem);
-//        addConstraint_20(problem);
-        addConstraint_20_to_25(problem);
+        addConstraint_18(problem);
+        addConstraint_19(problem);
+        addConstraint_20(problem);
+//        addConstraint_20_to_25(problem);
         
         addConstraint_21(problem);
         addConstraint_22(problem);
@@ -163,16 +165,16 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         StringBuilder vars = new StringBuilder();
 
         if (solved != null) {
-            log.info("------------------------- Solved  -------------------------");
-            log.info(solved.toString());
+            log.debug("------------------------- Solved  -------------------------");
+            log.debug(solved.toString());
 
-            log.info("------------------------- Variables -------------------------");
+            log.debug("------------------------- Variables -------------------------");
             for (Object variable : problem.getVariables()) {
                 vars.append(i).append(": ").append(variable).append("=").append(solved.get(variable)).append(", ");
                 i++;
             }
-            log.info(vars.toString());
-            log.info("-----------------------------------------------------------");
+            log.debug(vars.toString());
+            log.debug("-----------------------------------------------------------");
             
             System.out.println(getAllObjectives(solved));
         }
@@ -286,10 +288,10 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
             builder.append("\n").append(element.toString());
         }
 
-        builder.append("\n- nextWorkflowInstances -");
-        for (WorkflowElement workflowElement : nextWorkflowInstances) {
-            builder.append("\n").append(workflowElement.toString());
-        }
+//        builder.append("\n- nextWorkflowInstances -");
+//        for (WorkflowElement workflowElement : nextWorkflowInstances) {
+//            builder.append("\n").append(workflowElement.toString());
+//        }
 
         builder.append("\n------- nextSteps --------");
         for (Map.Entry<String, List<Element>> nextStepEntry : nextSteps.entrySet()) {
@@ -350,7 +352,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
                 coefficient = 100.0-diffInMinutes; 
             }
             
-            Date enactDeadl = new Date(enactmentDeadline);
+//            Date enactDeadl = new Date(enactmentDeadline);
 //            System.out.println("EnactmentDeadline: "+ enactDeadl + ", tau_t :" + tau_t + " of Workflow "+ workflowInstance.getName());
 //    		System.out.println("******* Coefficient for Term 6 was: " + coefficient + " For diff: " + diffInMinutes + " For WorkflowDeadline: " + workflowInstance.getDeadline()+ " of Workflow "+ workflowInstance.getName());
 
@@ -383,28 +385,55 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
     /**
      * @param problem to be solved
      */
+//    private void addConstraint_2(Problem problem) {
+//        final List<WorkflowElement> nextWorkflowInstances = getNextWorkflowInstances();
+//        for (final WorkflowElement workflowInstance : nextWorkflowInstances) {
+//            Linear linear = new Linear();
+//            String executionTimeWorkflowVariable = placementHelper.getExecutionTimeVariable(workflowInstance);
+//            String executionTimeViolation = placementHelper.getExecutionTimeViolationVariable(workflowInstance);
+//            linear.add(1, "tau_t_1");
+//            linear.add(1, executionTimeWorkflowVariable);
+//            linear.add(-1, executionTimeViolation);
+//
+////            List<Element> runningStepsForWorkflow = getRunningStepsForWorkflow(workflowInstance.getName());
+////            long maxRemainingExecutionTime = 0;
+////            for (Element runningStep : runningStepsForWorkflow) {
+////                maxRemainingExecutionTime = Math.max(maxRemainingExecutionTime, getRemainingExecutionTimeAndDeployTimes(runningStep));
+////            }
+//
+//            long rhs = (workflowInstance.getDeadline() / 1000) - START_EPOCH; //- maxRemainingExecutionTime / 1000;
+//            problem.add(linear, "<=", rhs);
+//
+//        }
+//    }
+
     private void addConstraint_2(Problem problem) {
         final List<WorkflowElement> nextWorkflowInstances = getNextWorkflowInstances();
         for (final WorkflowElement workflowInstance : nextWorkflowInstances) {
-            Linear linear = new Linear();
             String executionTimeWorkflowVariable = placementHelper.getExecutionTimeVariable(workflowInstance);
             String executionTimeViolation = placementHelper.getExecutionTimeViolationVariable(workflowInstance);
-            linear.add(1, "tau_t_1");
+            
+            long deadline = (workflowInstance.getDeadline() / 1000) - START_EPOCH; //- maxRemainingExecutionTime / 1000;
+            long totalRemainingExecutionTimeAndDeployTimesRunning = 0;
+            List<Element> steps = getRunningStepsForWorkflow(workflowInstance.getName());
+            for (Element step : steps) {
+            	totalRemainingExecutionTimeAndDeployTimesRunning += getRemainingExecutionTimeAndDeployTimes(step) / 1000;
+            }
+
+            Linear linear = new Linear();
             linear.add(1, executionTimeWorkflowVariable);
             linear.add(-1, executionTimeViolation);
-
-//            List<Element> runningStepsForWorkflow = getRunningStepsForWorkflow(workflowInstance.getName());
-//            long maxRemainingExecutionTime = 0;
-//            for (Element runningStep : runningStepsForWorkflow) {
-//                maxRemainingExecutionTime = Math.max(maxRemainingExecutionTime, getRemainingExecutionTimeAndDeployTimes(runningStep));
-//            }
-
-            long rhs = (workflowInstance.getDeadline() / 1000) - START_EPOCH; //- maxRemainingExecutionTime / 1000;
-            problem.add(linear, "<=", rhs);
+            problem.add(linear, "<=", deadline - (tau_t_startepoch.getTime() / 1000) - totalRemainingExecutionTimeAndDeployTimesRunning);
+            
+            Linear linear2 = new Linear();
+            linear2.add(1, "tau_t_1");
+            linear2.add(1, executionTimeWorkflowVariable);
+            linear2.add(-1, executionTimeViolation);
+            problem.add(linear2, "<=", deadline);
 
         }
     }
-
+    
     /**
      * next optimization step has to be bigger than the last one
      *
@@ -475,7 +504,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
             for (Element step2 : steps2) {
                 if (!step1.getName().equals(step2.getName())) { //save some iterations, only take the different step
                     //DS: we only need this constraint if the service types are different
-                    if (!((ProcessStep) step1).getServiceType().name().equals(((ProcessStep) step2).getServiceType().name())) {
+                    if (!((ProcessStep) step1).getServiceType().getName().equals(((ProcessStep) step2).getServiceType().getName())) {
                         for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
                             String decisionVariable1 = placementHelper.getDecisionVariableX(step1, vm);
                             String decisionVariable2 = placementHelper.getDecisionVariableX(step2, vm);
@@ -489,6 +518,28 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
                 }
             }
             steps2.remove(step1);
+        }
+    }
+    
+    private void addConstraint_13b(Problem problem) {
+    	
+    	for(VirtualMachine vm : cacheVirtualMachineService.getAllVMs()){
+    		for(Element step : getNextAndRunningSteps()){
+    			
+    			String stepType = ((ProcessStep) step).getServiceType().getName();
+    			
+    			if(vm.isLeased()){
+    				
+    				if(!(vm.getServiceType().getName().equals(stepType))){
+    					Linear linear = new Linear();
+    					String decisionVariableX = placementHelper.getDecisionVariableX(step, vm);
+    					linear.add(1, decisionVariableX);
+    					problem.add(linear, Operator.EQ, 0);
+    		            problem.setVarUpperBound(decisionVariableX, 0);
+    		            problem.setVarLowerBound(decisionVariableX, 0);
+    				}
+    			}
+    		}
         }
     }
 
@@ -611,7 +662,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
                 int i = 1 - placementHelper.isLeased(vm);
                 remainingExecutionTime = remainingExecutionTime / 1000;
                 serviceDeployTime = serviceDeployTime / 1000;
-                String type = ((ProcessStep) step).getServiceType().name();
+                String type = ((ProcessStep) step).getServiceType().getName();
                 int z1 = placementHelper.getZ(type, vm);
                 linear.add(remainingExecutionTime + serviceDeployTime * (1 - z1) + vm.getStartupTime() / 1000 * i, decisionVariableX);
                 linear.add(- (placementHelper.getLeasingDuration(vm) / 1000), decisionVariableY);

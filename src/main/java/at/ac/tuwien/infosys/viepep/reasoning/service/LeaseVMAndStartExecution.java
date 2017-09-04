@@ -39,11 +39,9 @@ public class LeaseVMAndStartExecution {
     @Autowired
     private ViePEPClientService viePEPClientService;
     @Autowired
+    private DockerExecutor dockerExecutor;
+    @Autowired
     private ServiceExecution serviceExecution;
-    @Autowired
-    private PlacementHelper placementHelper;
-    @Autowired
-    private ViePEPDockerControllerService dockerControllerService;
 
     @Value("${simulate}")
     private boolean simulate;
@@ -53,6 +51,60 @@ public class LeaseVMAndStartExecution {
     private long startupTime;
     
 
+    @Component
+    public static class DockerExecutor {
+
+        @Autowired
+        private PlacementHelper placementHelper;
+        @Autowired
+        private ServiceExecution serviceExecution;
+        @Autowired
+        private ViePEPDockerControllerService dockerControllerService;
+        @Autowired
+        private ReportDaoService reportDaoService;
+        @Value("${simulate}")
+        private boolean simulate;
+
+        @Async
+        public void startExecution(Map<DockerContainer, List<ProcessStep>> containerProcessSteps, VirtualMachine virtualMachine, DockerContainer container) {
+        	startContainer(virtualMachine, container);
+    		for (final ProcessStep processStep : containerProcessSteps.get(container)) {
+    			if(processStep.getStartDate() == null){
+    				processStep.setStartDate(TimeUtil.nowDate());
+    				serviceExecution.startExecution(processStep, container);
+    			}
+    		}
+        }
+
+        private void startContainer(VirtualMachine vm, DockerContainer container) {
+        	if(container.isRunning()){
+        		log.info("Container "+ container + " already running on vm "+ container.getVirtualMachine());
+        		return;
+        	}
+
+        	if(simulate) {
+        		if(!placementHelper.imageForContainerEverDeployedOnVM(container, vm)){
+    				TimeUtil.sleep(container.getDeployTime());
+    			}
+    			TimeUtil.sleep(container.getStartupTime());
+        	} else {
+        		log.info("Start Container: " + container + " on VM: " + vm);
+    			try {
+    				dockerControllerService.startDocker(vm, container);
+    			} catch (CouldNotStartDockerException e) {
+    				e.printStackTrace();
+    			}
+        	}
+        	container.setRunning(true);
+        	container.setStartedAt(TimeUtil.nowDate());
+    		vm.deployDockerContainer(container);
+
+        	DockerReportingAction report =  new DockerReportingAction(TimeUtil.nowDate(), container.getName(), vm.getName(), Action.START);
+            reportDaoService.save(report);
+             
+        }
+    }
+    
     @Async
     public void leaseVMAndStartExecution(VirtualMachine virtualMachine, List<ProcessStep> processSteps) {
 
@@ -82,6 +134,7 @@ public class LeaseVMAndStartExecution {
         }
     }
 
+    @Async
     public void leaseVMAndStartExecution(VirtualMachine virtualMachine, Map<DockerContainer, List<ProcessStep>> containerProcessSteps) {
     	final StopWatch stopWatch = new StopWatch();
         stopWatch.start();
@@ -117,19 +170,12 @@ public class LeaseVMAndStartExecution {
         for (final ProcessStep processStep : processSteps) {
             processStep.setStartDate(TimeUtil.nowDate());
         	serviceExecution.startExecution(processStep, virtualMachine);
-
         }
     }
 
 	public void startExecutions(Map<DockerContainer, List<ProcessStep>> containerProcessSteps, VirtualMachine virtualMachine) {
 		for (final DockerContainer container : containerProcessSteps.keySet()) {
-			startContainer(virtualMachine, container);
-			for (final ProcessStep processStep : containerProcessSteps.get(container)) {
-				if(processStep.getStartDate()==null){
-					processStep.setStartDate(TimeUtil.nowDate());
-					serviceExecution.startExecution(processStep, container);
-				}	
-			}
+			dockerExecutor.startExecution(containerProcessSteps, virtualMachine, container);
 		}
 	}
 
@@ -143,39 +189,15 @@ public class LeaseVMAndStartExecution {
             	TimeUtil.sleep(virtualMachine.getDeployTime());
             }
         } else {
-            address = viePEPClientService.startNewVM(virtualMachine.getName(), virtualMachine.getVmType().flavor(), virtualMachine.getServiceType().name(), virtualMachine.getVmType().getLocation());
+            address = viePEPClientService.startNewVM(virtualMachine.getName(), virtualMachine.getVmType().flavor(),
+            		virtualMachine.getServiceType().getName(), virtualMachine.getVmType().getLocation());
             log.info("VM up and running with ip: " + address + " vm: " + virtualMachine);
-            TimeUtil.sleep(startupTime); //sleep 15 seconds, since as soon as it is up, it still has to deploy the services
+            if(!useDocker){
+            	TimeUtil.sleep(virtualMachine.getDeployTime()); //sleep 30 seconds, since as soon as it is up, it still has to deploy the services
+            }
         }
     	return address;
     }
-    
-    private void startContainer(VirtualMachine vm, DockerContainer container) {
-    	if(container.isRunning()){
-    		log.info("Container "+ container + " already running on vm "+ container.getVirtualMachine());
-    		return;
-    	}
-    	
-    	if(simulate) {
-    		if(!placementHelper.imageForContainerEverDeployedOnVM(container, vm)){
-				TimeUtil.sleep(container.getDeployTime());
-			}
-			TimeUtil.sleep(container.getStartupTime());
-    	} else {
-    		log.info("Start Container: " + container + " on VM: " + vm);
-			try {
-				dockerControllerService.startDocker(vm, container);
-			} catch (CouldNotStartDockerException e) {
-				e.printStackTrace();
-			}
-    	}
-    	container.setRunning(true);
-    	container.setStartedAt(TimeUtil.nowDate());
-		vm.deployDockerContainer(container);
 
-    	DockerReportingAction report =  new DockerReportingAction(TimeUtil.nowDate(), container.getName(), vm.getName(), Action.START);
-        reportDaoService.save(report);
-         
-    }
 
 }

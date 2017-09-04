@@ -91,7 +91,8 @@ public class CacheVirtualMachineService {
     public Map<VMType, List<VirtualMachine>> getVMMap() {
     	return inMemoryCache.getVMMap();
     }
-    
+
+    @Deprecated
     public VirtualMachine getVMById(int v, int k) {
         for (VirtualMachine virtualMachine : getAllVMs()) {
         	if (virtualMachine.getName().equals(v + "_" + k)) {
@@ -101,7 +102,7 @@ public class CacheVirtualMachineService {
         return null;
     }
 
-    public Set<VirtualMachine> getStartedVMs() {
+    private Set<VirtualMachine> getStartedVMs() {
     	Set<VirtualMachine> result = new HashSet<VirtualMachine>();
     	for(VirtualMachine vm : getAllVMs()) {
     		if(vm.isStarted()) {
@@ -111,7 +112,7 @@ public class CacheVirtualMachineService {
     	return result;
     }
 
-    public Set<VirtualMachine> getScheduledForStartVMs() {
+    private Set<VirtualMachine> getScheduledForStartVMs() {
     	Set<VirtualMachine> result = new HashSet<VirtualMachine>();
     	for(VirtualMachine vm : getAllVMs()) {
     		if(vm.getToBeTerminatedAt() != null) {

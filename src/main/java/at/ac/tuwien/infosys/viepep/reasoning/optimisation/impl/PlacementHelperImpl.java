@@ -26,6 +26,10 @@ import java.util.*;
 @Component
 @Slf4j
 public class PlacementHelperImpl implements PlacementHelper {
+	
+
+    @Value("${service.deploy.time}")
+    private long SERVICE_DEPLOY_TIME;
 
     @Autowired
     private ElementDaoService elementDaoService;
@@ -58,6 +62,7 @@ public class PlacementHelperImpl implements PlacementHelper {
                 if (element instanceof ProcessStep && element.isLastElement()) {
                     if (((ProcessStep) element).isHasToBeExecuted()) {
                         if (element.getFinishedAt() == null) {
+                        	System.out.println(getClass() + ": Process step still not finished: " + element);
                             workflowDone = false;
                             break;
                         }
@@ -72,7 +77,7 @@ public class PlacementHelperImpl implements PlacementHelper {
 
             if (workflowDone) {
                 for (Element element : flattenWorkflowList) {
-                    if (element.getFinishedAt() != null) {
+                    if (element.getFinishedAt() == null) {
                         element.setFinishedAt(finishedDate);
                     }
                 }
@@ -161,7 +166,7 @@ public class PlacementHelperImpl implements PlacementHelper {
 		Date startedAt = vm.getStartedAt();
 		if (vm.isLeased() && startedAt != null && !vm.isStarted()) {
 			long startupTime = vm.getStartupTime();
-			long serviceDeployTime = vm.getDeployTime();
+			long serviceDeployTime = SERVICE_DEPLOY_TIME;
 			long nowTime = now.getTime();
 			long startedAtTime = startedAt.getTime();
 			long remaining = (startedAtTime + startupTime + serviceDeployTime) - nowTime;
@@ -428,7 +433,7 @@ public class PlacementHelperImpl implements PlacementHelper {
      * @return 0 if false, 1 if true
      */
     public int getZ(String serviceType, VirtualMachine vm) {
-    	if (vm.isLeased() && vm.getServiceType() != null && vm.getServiceType().name().equals(serviceType)) {
+    	if (vm.isLeased() && vm.getServiceType() != null && vm.getServiceType().getName().equals(serviceType)) {
     		   return 1;   
         }
         return 0;
@@ -580,12 +585,18 @@ public class PlacementHelperImpl implements PlacementHelper {
 	}
 	
 	public boolean imageForStepEverDeployedOnVM(ProcessStep step, VirtualMachine vm) {
-		for(DockerContainer container : vm.getDeployedContainers()){
-			// System.out.println(" Deployed Container on VM ("+vm+") :"+ container);
-			if(step.getServiceType().getName().equals(container.getDockerImage().getServiceName())) {
-				return true;
+		List<DockerContainer> containers = vm.getDeployedContainers();
+		synchronized (containers) {
+			for(DockerContainer container : containers) {
+				// System.out.println(" Deployed Container on VM ("+vm+") :"+ container);
+				String serviceTypeName = step.getServiceType().getName();
+				System.out.println("container " + container);
+				String dockerServiceTypeName = container.getDockerImage().getServiceName();
+				if(serviceTypeName.equals(dockerServiceTypeName)) {
+					return true;
+				}
 			}
-		}	
+		}
 		return false;
 	}
 
@@ -594,9 +605,12 @@ public class PlacementHelperImpl implements PlacementHelper {
 	}
 
 	public boolean imageEverDeployedOnVM(DockerImage image, VirtualMachine vm) {
-		for(DockerContainer containerOnVm : vm.getDeployedContainers()){
-			if(image.getServiceName().equals(containerOnVm.getDockerImage().getServiceName())) {
-				return true;
+		List<DockerContainer> containers = vm.getDeployedContainers();
+		synchronized (containers) {
+			for(DockerContainer containerOnVm : containers) {
+				if(image.getServiceName().equals(containerOnVm.getDockerImage().getServiceName())) {
+					return true;
+				}
 			}
 		}
 		return false;

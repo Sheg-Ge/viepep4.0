@@ -78,7 +78,7 @@ public class ReasoningImpl {
                 		lastTerminateCheckTime.set(now);
 
                 		List<WorkflowElement> workflows = cacheWorkflowService.getRunningWorkflowInstances();
-                		log.info("  ***************** RunningWFL Instances (" + workflows.size() + "running) WAS EMPTY? : " + workflows.isEmpty());
+                		log.warn("  ***************** RunningWFL Instances (" + workflows.size() + "running) WAS EMPTY? : " + workflows.isEmpty());
 //                        for(WorkflowElement workflow: workflows) {
 //                        	System.out.println("\n running workflow: " + workflow);
 //                        }
@@ -87,7 +87,7 @@ public class ReasoningImpl {
                             if(emptyTime == null) {
                             	emptyTime = TimeUtil.nowDate();
                             };
-                            log.info("Time first empty: " + emptyTime);
+                            log.warn("Time first empty: " + emptyTime);
                         }
                         else {
                             emptyTime = null;
@@ -103,7 +103,7 @@ public class ReasoningImpl {
 
                 		 long difference = performOptimisation();
 
-                		 nextOptimizeTime.set(now + difference);
+                		 nextOptimizeTime.set(TimeUtil.now() + difference);
                          // TimeUtil.sleep(difference);
                 	}
 
@@ -113,7 +113,7 @@ public class ReasoningImpl {
                     log.error("An exception occurred, could not solve the problem", ex);
                     // try again in some time
            		 	nextOptimizeTime.set(TimeUtil.now() + RETRY_TIMEOUT_MILLIS);
-                } catch (Exception ex) {
+                } catch (Throwable ex) {
                     log.error("An unknown exception occurred. Terminating.", ex);
                     ex.printStackTrace();
                     run = false;
@@ -126,7 +126,7 @@ public class ReasoningImpl {
         List<WorkflowElement> workflows = cacheWorkflowService.getAllWorkflowElements();
         int delayed = 0;
         for (WorkflowElement workflow : workflows) {
-            log.info("workflow: " + workflow.getName() + " Deadline: " + formatter.format(new Date(workflow.getDeadline())));
+            log.warn("workflow: " + workflow.getName() + " Deadline: " + formatter.format(new Date(workflow.getDeadline())));
 
             ProcessStep lastExecutedElement = workflow.getLastExecutedElement();
             if (lastExecutedElement != null) {
@@ -136,17 +136,17 @@ public class ReasoningImpl {
                 long delay = finishedAt.getTime() - workflow.getDeadline();
                 String message = " LastDone: " + formatter.format(finishedAt);
                 if (ok) {
-                    log.info(message + " : was ok");
+                    log.warn(message + " : was ok");
                 } else {
-                    log.info(message + " : delayed in seconds: " + delay / 1000);
+                    log.warn(message + " : delayed in seconds: " + delay / 1000);
                     delayed++;
                 }
                 cacheWorkflowService.deleteRunningWorkflowInstance(workflow);
             } else {
-                log.info(" LastDone: not yet finished");
+                log.warn(" LastDone: not yet finished");
             }
         }
-        log.info(String.format("From %s workflows, %s where delayed", workflows.size(), delayed));
+        log.warn(String.format("From %s workflows, %s where delayed", workflows.size(), delayed));
 
         for(WorkflowElement workflowElement : cacheWorkflowService.getAllWorkflowElements()) {
             workflowDaoService.finishWorkflow(workflowElement);
@@ -179,6 +179,9 @@ public class ReasoningImpl {
         System.out.println("Perform optimization");
 
         Result optimize = resourcePredictionService.optimize(tau_t_0);
+        
+        System.out.println("Done optimization");
+
 
         if (optimize == null) {
             throw new ProblemNotSolvedException("Could not solve the Problem");

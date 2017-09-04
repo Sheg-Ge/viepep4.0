@@ -12,9 +12,14 @@ public enum VMType {
 //    AWS_SINGLE_CORE(1, 1, 1024, 9, "t2.micro", "aws", 60 * 1000 * 5),
 //    AWS_DUAL_CORE(2, 1, 1024, 15, "t2.micro", "aws", 60 * 1000 * 5),
 //    AWS_QUAD_CORE(3, 1, 1024, 15, "t2.micro", "aws", 60 * 1000 * 5);
-    AWS_SINGLE_CORE(1, 1, 1024, 9, "t2.small", "aws", 60 * 1000 * 5),
-    AWS_DUAL_CORE(2, 2, 2048, 15, "m3.large", "aws", 60 * 1000 * 5),
-    AWS_QUAD_CORE(3, 4, 4096, 25, "m3.xlarge", "aws", 60 * 1000 * 5);
+    SINGLE_CORE(1, 1, 1024, 10, "t2.small", "internal", 60 * 1000 * 5),
+    DUAL_CORE(2, 2, 2048, 18, "m3.large", "internal", 60 * 1000 * 5),
+    QUAD_CORE(3, 4, 4096, 30, "m3.xlarge", "internal", 60 * 1000 * 5),
+    AWS_SINGLE_CORE(4, 1, 1024, 15, "t2.small", "aws", 60 * 1000 * 5),
+    AWS_DUAL_CORE(5, 2, 2048, 25, "c2.large", "aws", 60 * 1000 * 5),
+    AWS_QUAD_CORE(6, 4, 4096, 35, "c2.xlarge", "aws", 60 * 1000 * 5),
+    AWS_OCTA_CORE(7, 8, 8192, 50, "c2.xlarge", "aws", 60 * 1000 * 5);
+    
 //    AWS_OCTA_CORE(4, 8, 8192, 40, "m3.xlarge", "aws", 60 * 1000 * 5);
     
 //    AWS_SINGLE_CORE(4, 1, 2048, 9, "m1.small", "internal"),
@@ -47,30 +52,27 @@ public enum VMType {
 
     public static VMType fromIdentifier(int identifier) throws Exception {
         switch (identifier) {
-        	case 1: return AWS_SINGLE_CORE;
-        	case 2: return AWS_DUAL_CORE;
-        	case 3: return AWS_QUAD_CORE;
-//        	case 4: return AWS_OCTA_CORE;
-//            case 1 : return SINGLE_CORE;
-//            case 2 : return DUAL_CORE;
-//            case 3 : return QUAD_CORE;
-//            case 4 : return AWS_SINGLE_CORE;
-//            case 5 : return AWS_DUAL_CORE;
-//            case 6 : return AWS_QUAD_CORE;
+            case 1 : return SINGLE_CORE;
+            case 2 : return DUAL_CORE;
+            case 3 : return QUAD_CORE;
+            case 4 : return AWS_SINGLE_CORE;
+            case 5 : return AWS_DUAL_CORE;
+            case 6 : return AWS_QUAD_CORE;
+            case 7 : return AWS_OCTA_CORE;
             default : throw new Exception("TYPE not found");
         }
     }
 
     public static VMType fromCore(int cores, String location) throws Exception {
-//        if ((cores == 1) && (location.equals("internal"))) {
-//            return SINGLE_CORE;
-//        }
-//        if ((cores == 2) && (location.equals("internal"))) {
-//            return DUAL_CORE;
-//        }
-//        if ((cores == 4) && (location.equals("internal"))) {
-//            return QUAD_CORE;
-//        }
+        if ((cores == 1) && (location.equals("internal"))) {
+            return SINGLE_CORE;
+        }
+        if ((cores == 2) && (location.equals("internal"))) {
+            return DUAL_CORE;
+        }
+        if ((cores == 4) && (location.equals("internal"))) {
+            return QUAD_CORE;
+        }
         if ((cores == 1) && (location.equals("aws"))) {
             return AWS_SINGLE_CORE;
         }
@@ -80,9 +82,9 @@ public enum VMType {
         if ((cores == 4) && (location.equals("aws"))) {
             return AWS_QUAD_CORE;
         }
-//        if ((cores == 8) && (location.equals("aws"))) {
-//            return AWS_OCTA_CORE;
-//        }
+        if ((cores == 8) && (location.equals("aws"))) {
+            return AWS_OCTA_CORE;
+        }
         else throw new Exception("TYPE not found");
     }
 
