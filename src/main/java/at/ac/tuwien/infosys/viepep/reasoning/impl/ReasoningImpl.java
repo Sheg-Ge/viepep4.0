@@ -4,6 +4,7 @@ import static at.ac.tuwien.infosys.viepep.Constants.START_EPOCH;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
@@ -66,6 +67,9 @@ public class ReasoningImpl {
 
         Date emptyTime = null;
 
+//        // TODO temp!
+//        List<WorkflowElement> previousResults = new LinkedList<>();
+
         while (run) {
             synchronized (this) {
                 try {
@@ -82,6 +86,24 @@ public class ReasoningImpl {
 //                        for(WorkflowElement workflow: workflows) {
 //                        	System.out.println("\n running workflow: " + workflow);
 //                        }
+
+//                		// TODO TEMP!
+//                		if(workflows.size() == 1) {
+//                			WorkflowElement workflow = workflows.get(0);
+//                			long id = workflow.getId();
+//                			if (previousResults.isEmpty() ||
+//                					(previousResults.get(0).getId() == id && workflow.getName().equals(workflow.getName()))) {
+//                				previousResults.add(workflow);
+//                			} else {
+//                    			previousResults = new LinkedList<>();
+//                    		}
+//                		} else {
+//                			previousResults = new LinkedList<>();
+//                		}
+//                		if(previousResults.size() > 25) {
+//                			System.out.println("WARNING: Terminating because we seem to be stuck somewhere.");
+//                			run = false;
+//                		}
 
                         if(workflows.isEmpty()) {
                             if(emptyTime == null) {
@@ -182,7 +204,6 @@ public class ReasoningImpl {
         
         System.out.println("Done optimization");
 
-
         if (optimize == null) {
             throw new ProblemNotSolvedException("Could not solve the Problem");
         }
@@ -195,6 +216,8 @@ public class ReasoningImpl {
 
         Future<Boolean> processed = processOptimizationResults.processResults(optimize, tau_t_0);
         processed.get();
+
+        System.out.println("Done processing results");
 
         /* resume simulation time */
         TimeUtil.setFastTicking();

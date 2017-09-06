@@ -209,53 +209,5 @@ public class DockerContainer {
 			return false;
 		return true;
 	}
-    
-//    @Override
-//	public int hashCode() {
-//		final int prime = 31;
-//		int result = 1;
-//		result = getName().hashCode();
-//		result += prime * result
-//				+ ((containerID == null) ? 0 : containerID.hashCode());
-//		result = prime * result
-//				+ ((dockerImage == null) ? 0 : dockerImage.hashCode());
-//		result = prime * result + ((id == null) ? 0 : id.hashCode());
-//		return result;
-//	}
-//
-//	@Override
-//	public boolean equals(Object obj) {
-//		if (this == obj)
-//			return true;
-//		if (obj == null)
-//			return false;
-//		if (getClass() != obj.getClass())
-//			return false;
-//		DockerContainer other = (DockerContainer) obj;
-//		if (containerID == null) {
-//			if (other.containerID != null)
-//				return false;
-//		} else if (!containerID.equals(other.containerID))
-//			return false;
-//		if (dockerImage == null) {
-//			if (other.dockerImage != null)
-//				return false;
-//		} else if (!dockerImage.equals(other.dockerImage))
-//			return false;
-//		if (id == null) {
-//			if (other.id != null)
-//				return false;
-//		} else if (!id.equals(other.id))
-//			return false;
-//
-//		//  also consider the name here:
-//		String otherName = other.getName();
-//		String thisName = this.getName();
-//		if (thisName == null) {
-//			if (otherName != null)
-//				return false;
-//		} else if (!thisName.equals(otherName))
-//			return false;
-//		return true;
-//	}
+
 }

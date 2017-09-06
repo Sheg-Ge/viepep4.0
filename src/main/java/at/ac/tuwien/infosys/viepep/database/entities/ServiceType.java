@@ -5,28 +5,27 @@ package at.ac.tuwien.infosys.viepep.database.entities;
  */
 public enum ServiceType {
 
-    Task1("service1", 45, 450, 1000 * 40, 2, false),
-    Task2("service2", 75, 720, 1000 * 80, 4, false),
-    Task3("service3", 75, 720, 1000 * 120, 6, true),
-    Task4("service4", 100, 960, 1000 * 40, 2, false),
-    Task5("service5", 120, 1150, 1000 * 100, 4, false),
-    Task6("service6", 125, 1150, 1000 * 20, 6, true),
-    Task7("service7", 150, 1440, 1000 * 40, 2, false),
-    Task8("service8", 175, 1680, 1000 * 20, 4, false),
-    Task9("service9", 250, 2400, 1000 * 60, 6, true),
-    Task10("service10", 333, 3200, 1000 * 30, 2, false);
+//    Task1("service1", 45, 450, 1000 * 40, 2, false),
+//    Task2("service2", 75, 720, 1000 * 80, 4, false),
+//    Task3("service3", 75, 720, 1000 * 120, 6, true),
+//    Task4("service4", 100, 960, 1000 * 40, 2, false),
+//    Task5("service5", 120, 1150, 1000 * 100, 4, false),
+//    Task6("service6", 125, 1150, 1000 * 20, 6, true),
+//    Task7("service7", 150, 1440, 1000 * 40, 2, false),
+//    Task8("service8", 175, 1680, 1000 * 20, 4, false),
+//    Task9("service9", 250, 2400, 1000 * 60, 6, true),
+//    Task10("service10", 333, 3200, 1000 * 30, 2, false);
 	
-
-//    Task1("service1", 5, 45, 1000 * 30, 2, false),
-//    Task2("service2", 10, 90, 1000 * 80, 4, false),
-//    Task3("service3", 15, 135, 1000 * 120, 6, true),
-//    Task4("service4", 30, 270, 1000 * 100, 2, false),
-//    Task5("service5", 45, 405, 1000 * 10, 4, false),
-//    Task6("service6", 55, 495, 1000 * 20, 6, true),
-//    Task7("service7", 70, 630, 1000 * 40, 2, false),
-//    Task8("service8", 125, 1125, 1000 * 20, 4, false),
-//    Task9("service9", 125, 1125, 1000 * 60, 6, true),
-//    Task10("service10", 190, 1710, 1000 * 30, 2, false);
+    Task1("service1", 5, 45, 1000 * 40, 2, false),
+    Task2("service2", 10, 90, 1000 * 80, 4, false),
+    Task3("service3", 15, 135, 1000 * 120, 6, true),
+    Task4("service4", 30, 270, 1000 * 40, 2, false),
+    Task5("service5", 45, 405, 1000 * 100, 4, false),
+    Task6("service6", 55, 495, 1000 * 20, 6, true),
+    Task7("service7", 70, 630, 1000 * 40, 2, false),
+    Task8("service8", 125, 1125, 1000 * 20, 4, false),
+    Task9("service9", 125, 1125, 1000 * 60, 6, true),
+    Task10("service10", 190, 1710, 1000 * 30, 2, false);
     ServiceType(String name, double cpuLoad, double memoryInByte, long makeSpan, double dataToTransfer, boolean onlyInternal) {
         this.name = name;
         this.cpuLoad = cpuLoad;

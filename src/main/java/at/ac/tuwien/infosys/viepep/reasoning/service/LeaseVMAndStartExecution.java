@@ -69,7 +69,7 @@ public class LeaseVMAndStartExecution {
         public void startExecution(Map<DockerContainer, List<ProcessStep>> containerProcessSteps, VirtualMachine virtualMachine, DockerContainer container) {
         	startContainer(virtualMachine, container);
     		for (final ProcessStep processStep : containerProcessSteps.get(container)) {
-    			if(processStep.getStartDate() == null){
+    			if (processStep.getStartDate() == null) {
     				processStep.setStartDate(TimeUtil.nowDate());
     				serviceExecution.startExecution(processStep, container);
     			}

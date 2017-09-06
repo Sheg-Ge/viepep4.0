@@ -37,7 +37,7 @@ public interface PlacementHelper {
 
     List<ProcessStep> getNextSteps(Element workflow);
 
-    void resetChildren(List<Element> elementList);
+//    void resetChildren(List<Element> elementList);
 
 	String getGammaVariable(VMType vmType);
 

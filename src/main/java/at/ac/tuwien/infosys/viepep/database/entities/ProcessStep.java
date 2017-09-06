@@ -162,8 +162,11 @@ public class ProcessStep extends Element {
     public ProcessStep getLastExecutedElement() {
         return this;
     }
-    
+
     public void setStartDate(Date date){
+    	System.out.println(getClass() + " set start date: old: " + startDate + "; new: " + date); // TODO
+    	if(date == null)
+    		Thread.dumpStack(); // TODO
     	this.startDate = date;
     	if(date != null) {
     		numberOfExecutions++;
@@ -188,7 +191,7 @@ public class ProcessStep extends Element {
         String startDateformat = startDate != null ? formatter.format(startDate) : null;
         String finishedAtformat = finishedAt != null ? formatter.format(finishedAt) : null;
         String vmName = getScheduledAtVM() != null ? getScheduledAtVM().getName() : null;
-        
+
         String dockerName = scheduledAtContainer != null ? scheduledAtContainer.getName() : null;
         return "ProcessStep{" +
                 "id='" + id + '\'' +
@@ -199,6 +202,7 @@ public class ProcessStep extends Element {
                 ", scheduledAtVM=" + vmName +
                 ", scheduledAtContainer=" + dockerName +
                 ", lastElement=" + isLastElement() +
+                ", javaObjectId=" + getJavaObjectId() +
                 '}';
     }
 
@@ -215,15 +219,14 @@ public class ProcessStep extends Element {
     }
 
     
-    
-    @Deprecated
-    public void reset() {
-        this.setFinishedAt(null);
-        this.setStartDate(null);
-        this.setScheduledAtVM(null);
-        this.setScheduledAtContainer(null);
-        this.setHasBeenExecuted(false);
-        this.setScheduled(false);
-        this.setScheduledStartedAt(null);
-    }
+//    @Deprecated
+//    public void reset() {
+//        this.setFinishedAt(null);
+//        this.setStartDate(null);
+//        this.setScheduledAtVM(null);
+//        this.setScheduledAtContainer(null);
+//        this.setHasBeenExecuted(false);
+//        this.setScheduled(false);
+//        this.setScheduledStartedAt(null);
+//    }
 }

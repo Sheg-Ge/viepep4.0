@@ -248,7 +248,8 @@ public class PlacementHelperImpl implements PlacementHelper {
         List<ProcessStep> steps = new ArrayList<>();
         for (Element element : elements) {
             if (element instanceof ProcessStep) {
-                if ((((ProcessStep) element).getStartDate() != null || ((ProcessStep) element).getScheduledStartedAt() != null)
+                if ((((ProcessStep) element).getStartDate() != null ||
+                			((ProcessStep) element).getScheduledStartedAt() != null)
                 		&& ((ProcessStep) element).getFinishedAt() == null) {
                 	if (!steps.contains(element)) {
                         steps.add((ProcessStep) element);
@@ -306,6 +307,54 @@ public class PlacementHelperImpl implements PlacementHelper {
 
     @Override
     public List<ProcessStep> getNextSteps(Element workflow) {
+        List<ProcessStep> nextSteps = new ArrayList<>();
+        if (workflow instanceof ProcessStep) {
+            if (!((ProcessStep) workflow).hasBeenExecuted() && ((ProcessStep) workflow).getStartDate() == null && ((ProcessStep) workflow).getScheduledStartedAt() == null) {
+                nextSteps.add((ProcessStep) workflow);
+            }
+            return nextSteps;
+        }
+        for (Element element : workflow.getElements()) {
+            if (element instanceof ProcessStep) {
+            	if ((((ProcessStep) element).getStartDate() != null || ((ProcessStep) element).getScheduledStartedAt() != null) && ((ProcessStep) element).getFinishedAt() == null) {
+                    //Step is still running, ignore next step
+                    return nextSteps;
+                }
+            	nextSteps.addAll(getNextSteps(element));
+                if (nextSteps.size() > 0) {
+                    return nextSteps;
+                }
+            }
+            else {
+                List<Element> subElementList = element.getElements();
+                if (element instanceof ANDConstruct) {
+                    for (Element subElement : subElementList) {
+                        nextSteps.addAll(getNextSteps(subElement));
+                    }
+                }
+                else if (element instanceof XORConstruct) {
+                    nextSteps.addAll(getNextSteps(element.getParent().getNextXOR()));
+                }
+                else if (element instanceof LoopConstruct) {
+                	if((element.getNumberOfExecutions() < ((LoopConstruct) element).getNumberOfIterationsToBeExecuted())) {
+                		for(Element subElement : subElementList) {
+                			nextSteps.addAll(getNextSteps(subElement));
+                		}
+                	}
+                }
+                else { //sequence
+                    nextSteps.addAll(getNextSteps(element));
+                }
+            }
+            if (nextSteps.size() > 0) {
+                return nextSteps;
+            }
+        }
+        return nextSteps;
+    }
+
+    // TODO
+    public List<ProcessStep> getNextSteps_ORIGINAL(Element workflow) {
         List<ProcessStep> nextSteps = new ArrayList<>();
         if (workflow instanceof ProcessStep) {
             if (!((ProcessStep) workflow).hasBeenExecuted() && ((ProcessStep) workflow).getStartDate() == null && ((ProcessStep) workflow).getScheduledStartedAt() == null) {
@@ -402,20 +451,20 @@ public class PlacementHelperImpl implements PlacementHelper {
         return nextSteps;
     }
 
-    @Override
-    public void resetChildren(List<Element> elementList) {
-        if (elementList != null) {
-            for (Element element : elementList) {
-                if (element instanceof ProcessStep) {
-                    ((ProcessStep) element).reset();
-
-                }
-                else {
-                    resetChildren(element.getElements());
-                }
-            }
-        }
-    }
+//    @Override
+//    public void resetChildren(List<Element> elementList) {
+//        if (elementList != null) {
+//            for (Element element : elementList) {
+//                if (element instanceof ProcessStep) {
+//                    ((ProcessStep) element).reset();
+//
+//                }
+//                else {
+//                    resetChildren(element.getElements());
+//                }
+//            }
+//        }
+//    }
     
     
 	// ******************** Helpers FOR VMs
@@ -590,7 +639,6 @@ public class PlacementHelperImpl implements PlacementHelper {
 			for(DockerContainer container : containers) {
 				// System.out.println(" Deployed Container on VM ("+vm+") :"+ container);
 				String serviceTypeName = step.getServiceType().getName();
-				System.out.println("container " + container);
 				String dockerServiceTypeName = container.getDockerImage().getServiceName();
 				if(serviceTypeName.equals(dockerServiceTypeName)) {
 					return true;

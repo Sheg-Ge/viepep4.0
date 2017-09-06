@@ -4,8 +4,6 @@ import java.util.Date;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-import jnr.ffi.Struct.time_t;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -19,8 +17,10 @@ public class TimeUtil extends Thread {
 	public static final AtomicBoolean STARTED = new AtomicBoolean();
 	public static final AtomicBoolean RUNNING = new AtomicBoolean();
 
+	public static final long FAST_TICKING_SPEED = 30;
+
 	public static final long TIME_INCREMENTS_MS = 100;
-	public static final AtomicLong SEC_SLEEP_TIME_MS = new AtomicLong(10);
+	public static final AtomicLong SEC_SLEEP_TIME_MS = new AtomicLong(FAST_TICKING_SPEED);
 	private static long TICK_OUTPUT_BATCH = 10 * 1000 / TIME_INCREMENTS_MS;
 
 	private static TimeUtil INSTANCE;
@@ -124,7 +124,7 @@ public class TimeUtil extends Thread {
     }
 
     public static void setFastTicking() {
-    	setSpeed(20);
+    	setSpeed(FAST_TICKING_SPEED);
     }
 
     public static void setSpeed(double speed){

@@ -59,7 +59,10 @@ public class DockerLightProcessOptimizationResults implements ProcessOptimizatio
         List<String> x = new ArrayList<>();
 
         StringBuilder stringBuilder2 = new StringBuilder();
-        
+
+        stringBuilder2.append("------------------------- tau_t ----------------------------\n");
+        stringBuilder2.append(tau_t + "\n");
+
         stringBuilder2.append("------------------------- VMs running ----------------------------\n");
         List<VirtualMachine> vMs = cacheVirtualMachineService.getAllVMs();
         for(VirtualMachine vm : vMs) {
@@ -139,13 +142,20 @@ public class DockerLightProcessOptimizationResults implements ProcessOptimizatio
     }
 
 
-	
-
 
 	private void processResults(Result optimize, Date tau_t, List<VirtualMachine> vmsToStart,
 			List<DockerContainer> containersToDeploy, List<ProcessStep> scheduledForExecution,
 			List<String> y, List<String> x, StringBuilder stringBuilder2, List<VirtualMachine> vMs, 
 			List<WorkflowElement> allRunningWorkflowInstances) {
+
+        List<ProcessStep> runningOrNotStartedSteps = placementHelper.getRunningOrNotStartedSteps();
+
+        boolean printDebug = runningOrNotStartedSteps.size() <= 5;
+
+    	// TODO remove
+        if(printDebug) {
+            System.out.println("getRunningOrNotStartedSteps: " + runningOrNotStartedSteps);
+        }
 
         for (WorkflowElement workflow : allRunningWorkflowInstances) {
             List<ProcessStep> runningSteps = placementHelper.getRunningProcessSteps(workflow.getName());
@@ -157,11 +167,11 @@ public class DockerLightProcessOptimizationResults implements ProcessOptimizatio
                 }
             }
 
-            for (ProcessStep processStep : placementHelper.getRunningOrNotStartedSteps()) {
+            for (ProcessStep processStep : runningOrNotStartedSteps) {
                 if (!processStep.getWorkflowName().equals(workflow.getName())) {
                     continue;
                 }
-                processXYValues(optimize, tau_t, vmsToStart, containersToDeploy, scheduledForExecution, y, x, vMs, processStep);
+                processXYValues(optimize, tau_t, vmsToStart, containersToDeploy, scheduledForExecution, y, x, vMs, processStep, printDebug);
             }
 
         }
@@ -170,8 +180,9 @@ public class DockerLightProcessOptimizationResults implements ProcessOptimizatio
     
     private void processXYValues(Result optimize, Date tau_t, List<VirtualMachine> vmsToStart, 
     		List<DockerContainer> containersToDeploy, List<ProcessStep> scheduledForExecution, 
-    		List<String> y, List<String> x, List<VirtualMachine> vMs, ProcessStep processStep) {
-    	
+    		List<String> y, List<String> x, List<VirtualMachine> vMs, ProcessStep processStep,
+    		boolean printDebug) {
+
     	for (VirtualMachine virtualMachine: vMs) {
         	String x_s_v = placementHelper.getDecisionVariableX(processStep, virtualMachine);
             String y_v_k = placementHelper.getDecisionVariableY(virtualMachine);
@@ -194,16 +205,20 @@ public class DockerLightProcessOptimizationResults implements ProcessOptimizatio
                     virtualMachine.setToBeTerminatedAt(new Date(date.getTime() + (placementHelper.getLeasingDuration(virtualMachine) * toInt(y_v_k_number))));
                 }
             }
-            
+
         	DockerContainer container = virtualMachine.getContainer(processStep);
-            
+
             if (!x.contains(x_s_v)) {
                 x.add(x_s_v);
                 if(x_s_v_number != null) {
                 	int x_s_v_number_int = toInt(x_s_v_number);
+                	if(printDebug) {
+                		// TODO remove
+                		System.out.println("X for " + x_s_v + " = " + x_s_v_number_int);
+                	}
 	                if (x_s_v_number_int == 1) {
-	                	if(!containersToDeploy.contains(container)){
-	                		containersToDeploy.add(container);	              
+	                	if(!containersToDeploy.contains(container)) {
+	                		containersToDeploy.add(container);
 	                	}
 	                }
                 }
@@ -231,7 +246,7 @@ public class DockerLightProcessOptimizationResults implements ProcessOptimizatio
             }
         }
     }
-    
+
     private void cleanupContainers(List<DockerContainer> containersToDeploy) {
         List<DockerContainer> containers = cacheDockerService.getAllDockerContainers();
 

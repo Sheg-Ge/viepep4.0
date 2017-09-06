@@ -68,6 +68,8 @@ public class VirtualMachine implements Serializable {
     private Date startedAt;
     private boolean started;
     private Date toBeTerminatedAt;
+    
+    private boolean serviceTypeChanged;
 
     @OneToMany(mappedBy="virtualMachine")
     private List<DockerContainer> deployedContainers = Collections.synchronizedList(new ArrayList<>());
@@ -199,6 +201,11 @@ public class VirtualMachine implements Serializable {
     }
     
     public void setServiceType(ServiceType serviceType){
+    	if(this.serviceType != null){
+    		if(!this.serviceType.getName().equals(serviceType.getName())){
+    			this.serviceTypeChanged = true;
+    		}
+    	}
     	this.serviceType = serviceType;
     }
 

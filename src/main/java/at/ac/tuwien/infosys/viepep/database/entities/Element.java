@@ -5,6 +5,7 @@ import lombok.Setter;
 
 import javax.persistence.*;
 import javax.xml.bind.annotation.*;
+
 import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
@@ -84,6 +85,10 @@ public abstract class Element implements Serializable {
     
     public abstract int getNumberOfExecutions();
 
+    // TODO testing only
+    public String getJavaObjectId() {
+    	return super.toString().split("@")[1];
+    }
 
     @Override
     public String toString() {
@@ -92,24 +97,45 @@ public abstract class Element implements Serializable {
                 ", name='" + name + '\'' +
                 ", elements=" + elements +
                 ", deadline=" + deadline +
+                ", javaObjectId=" + getJavaObjectId() +
                 '}';
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof ProcessStep)) return false;
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + (int) (deadline ^ (deadline >>> 32));
+		result = prime * result + (int) (id ^ (id >>> 32));
+		result = prime * result + ((name == null) ? 0 : name.hashCode());
+		long temp;
+		temp = Double.doubleToLongBits(probability);
+		result = prime * result + (int) (temp ^ (temp >>> 32));
+		return result;
+	}
 
-        ProcessStep that = (ProcessStep) o;
-
-        boolean nameEquals = this.name.equals(that.name);
-        return (nameEquals);
-    }
-
-    @Override
-    public int hashCode() {
-        return name.hashCode();
-    }
-
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Element other = (Element) obj;
+		if (deadline != other.deadline)
+			return false;
+		if (id != other.id)
+			return false;
+		if (name == null) {
+			if (other.name != null)
+				return false;
+		} else if (!name.equals(other.name))
+			return false;
+		if (Double.doubleToLongBits(probability) != Double
+				.doubleToLongBits(other.probability))
+			return false;
+		return true;
+	}
 
 }

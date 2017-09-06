@@ -47,6 +47,13 @@ public class ServiceExecution{
     public void startExecution(ProcessStep processStep, VirtualMachine virtualMachine) {
         log.info("Task-Start: " + processStep);
 
+        synchronized(virtualMachine){
+	    	if(virtualMachine.isServiceTypeChanged()){
+	    		virtualMachine.setServiceTypeChanged(false);
+	    		TimeUtil.sleep(virtualMachine.getDeployTime());
+	    	}
+        }
+    	
         if (simulate) {
             TimeUtil.sleep(processStep.getExecutionTime());
         } else {

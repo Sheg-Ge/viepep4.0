@@ -121,7 +121,7 @@ public class BasicProcessInstancePlacementProblemServiceImpl extends NativeLibra
         addConstraint_4(problem);
         addConstraint_12(problem);
         addConstraint_13(problem);
-        addConstraint_13b(problem);
+//        addConstraint_13b(problem);
         
         addConstraint_14_16(problem);
         addConstraint_15_17(problem);

@@ -9,6 +9,7 @@ import at.ac.tuwien.infosys.viepep.database.inmemory.services.CacheWorkflowServi
 import at.ac.tuwien.infosys.viepep.reasoning.impl.ReasoningImpl;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.PlacementHelper;
 import at.ac.tuwien.infosys.viepep.reasoning.optimisation.ProcessInstancePlacementProblemService;
+import at.ac.tuwien.infosys.viepep.util.TimeUtil;
 import ilog.concert.IloException;
 import ilog.concert.IloLinearNumExpr;
 import ilog.concert.IloLinearNumExprIterator;
@@ -97,7 +98,7 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
             nextSteps = new HashMap<>();
             allRunningSteps = null;
             runningSteps = new HashMap<>();
-            
+
             getRunningWorkflowInstances();
             getAllNextStepsAsList();
 
@@ -244,6 +245,10 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
 
         builder.append("------- collections ---------\n");
 
+        builder.append("------- current time ---------\n");
+        builder.append(TimeUtil.now() + "\n");
+        builder.append(TimeUtil.nowDate() + "\n");
+
         builder.append("\n--------- vmMap ---------");
         for (Map.Entry<VMType, List<VirtualMachine>> vmMapEntry : cacheVirtualMachineService.getVMMap().entrySet()) {
 
@@ -341,22 +346,20 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
                 System.out.println("Exe dur: "+ exeDur + " enact Deadline: " + enactmentDeadline);
                 double enactmentDeadlineSmall = enactmentDeadline / 1000;
                 double tauSmall = tau_t.getTime() / 1000;
-            	
-            	
+
                 for(VirtualMachine virtualMachine : cacheVirtualMachineService.getAllVMs()){
             		String decisionVariableX = placementHelper.getDecisionVariableX(step, virtualMachine);
             		linear.add((enactmentDeadlineSmall - tauSmall) * OMEGA_DEADLINE_VALUE, decisionVariableX);
 //                    System.out.println("******************************** TERM 6 -1*coeff: "+ (-1 * coefficient) + " varX: "+ decisionVariableX + " Container: " + container.getName() + " step: " + step.getName());
-            		
+
             		//TERM 3:
                     if (!placementHelper.imageForStepEverDeployedOnVM(step, virtualMachine)) {
     					linear.add((double)CONTAINER_DEPLOY_COST * OMEGA_DEPLOY_D_VALUE, decisionVariableX);
 //    		            System.out.println("******************************** TERM 3 deployCostForContainer*Omega: "+ (dockerContainer.getDeployCost() * OMEGA_DEPLOY_D_VALUE) + " VarA "+ decisionVariableA);
     				}
-                    
+
                     //TERM 4:
                     long d_v_k = placementHelper.getRemainingLeasingDuration(tau_t, virtualMachine) / 1000;
-                    // System.out.println("?!?!?!?! " + (-1.0 * PREFER_LONGER_LEASED_VMS * (double)d_v_k));
                     linear.add(1.0 * PREFER_LONGER_LEASED_VMS * (double)d_v_k, decisionVariableX);
                 }
             }
@@ -1117,7 +1120,7 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
     /**
      * @return a list of workflow instances
      */
-    public List<WorkflowElement> getRunningWorkflowInstances() {
+    private List<WorkflowElement> getRunningWorkflowInstances() {
         if (nextWorkflowInstances == null) {
             nextWorkflowInstances = Collections.synchronizedList(new ArrayList<WorkflowElement>(
             		cacheWorkflowService.getRunningWorkflowInstances()));
@@ -1147,9 +1150,10 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
      * @param workflowInstanceID of the running steps
      * @return a list of currently running steps
      */
-    public List<ProcessStep> getRunningStepsForWorkflow(String workflowInstanceID) {
+    private List<ProcessStep> getRunningStepsForWorkflow(String workflowInstanceID) {
         if (!runningSteps.containsKey(workflowInstanceID)) {
-            List<ProcessStep> runningProcessSteps = Collections.synchronizedList(new ArrayList<ProcessStep>(placementHelper.getRunningProcessSteps(workflowInstanceID)));
+            List<ProcessStep> runningProcessSteps = Collections.synchronizedList(new ArrayList<ProcessStep>(
+            		placementHelper.getRunningProcessSteps(workflowInstanceID)));
             runningSteps.put(workflowInstanceID, runningProcessSteps);
         }
         return runningSteps.get(workflowInstanceID);
@@ -1236,7 +1240,7 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
      * @param step to find out rest execution time
      * @return the remaining execution time for step
      */
-    public long getRemainingExecutionTimeAndDeployTimes(ProcessStep processStep) {
+    private long getRemainingExecutionTimeAndDeployTimes(ProcessStep processStep) {
         long remainingExecutionTime = processStep.getRemainingExecutionTime(tau_t);
         if (processStep.isScheduled()) {
 //            log.info("getRemainingExecutionTimeAndDeployTimes finishWorkflow");
@@ -1259,7 +1263,7 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
      * @param factor      what factor
      * @param nextStepIds next step ids of the whole workflow
      */
-    public void generateConstraintsForCalculatingExecutionTime(Element elem, Linear linear, Problem problem, int factor,
+    private void generateConstraintsForCalculatingExecutionTime(Element elem, Linear linear, Problem problem, int factor,
                                                                List<String> nextStepIds) {
         if (elem instanceof ProcessStep) {
             String processStepVariable = "e_p_" + elem.getName();
@@ -1336,7 +1340,7 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
         }
     }
 
-	public long getOverallRemainingExecutionTimeWorstCase(Element elem) {
+	private long getOverallRemainingExecutionTimeWorstCase(Element elem) {
 		if (elem instanceof WorkflowElement) {
 			return getOverallRemainingExecutionTimeWorstCase(elem.getElements().get(0));
 		} else if (elem instanceof ProcessStep) {
@@ -1369,15 +1373,7 @@ public class DockerLightProcessInstancePlacementProblemServiceImpl extends Nativ
 		}
 		throw new RuntimeException("Unexpected element: " + elem);
 	}
-    
-    
 
-//    @Override
-    public Collection<Object> getVariables() {
-        return this.problem.getVariables();
-    }
-    
-    
     
 	private String getAllObjectives(Result optimize) {
 		System.out.println("\n Term 1: vm leasing costs");
