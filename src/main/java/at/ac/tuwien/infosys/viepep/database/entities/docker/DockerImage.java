@@ -1,5 +1,6 @@
 package at.ac.tuwien.infosys.viepep.database.entities.docker;
 
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
@@ -28,6 +29,7 @@ public class DockerImage {
     }
 
     @Id
+    @Column(columnDefinition="char(100)", length=100)
     private String serviceName;
     private ServiceType serviceType;
     private String imageName;

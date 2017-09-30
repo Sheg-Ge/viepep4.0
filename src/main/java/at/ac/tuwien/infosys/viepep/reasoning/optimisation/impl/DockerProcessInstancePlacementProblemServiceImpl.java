@@ -240,7 +240,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 //            log.info(vars.toString());
 //            log.info("-----------------------------------------------------------");
 //            
-            getAllObjectives(solved);
+            System.out.println(getAllObjectives(solved));
 //            getAllSolvedConstraints(solved, problem);
             
             for(int j=0; j<10; j++){
@@ -374,7 +374,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
             	
             	long exeDur = getOverallRemainingExecutionTimeWorstCase(workflowInstance);
                 long enactmentDeadline = placementHelper.getEnactmentDeadline(workflowInstance) - exeDur;//getDeadline() / 1000;
-                System.out.println("Exe dur: "+ exeDur + " enact Deadline: " + enactmentDeadline);
+//                System.out.println("Exe dur: "+ exeDur + " enact Deadline: " + enactmentDeadline);
                 double enactmentDeadlineSmall = enactmentDeadline / 1000;
                 double tauSmall = tau_t.getTime() / 1000;
             	
@@ -385,7 +385,7 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
 //            	System.out.println(cacheDockerService.getDockerContainers(step));
                 for(DockerContainer container : cacheDockerService.getDockerContainers(step)){
             		String decisionVariableX = placementHelper.getDecisionVariableX(step, container);
-            		linear.add(1 * (enactmentDeadlineSmall - tauSmall)*0.001, decisionVariableX);
+            		linear.add((enactmentDeadlineSmall - tauSmall)*0.001, decisionVariableX);
 //                    System.out.println("******************************** TERM 6 -1*coeff: "+ (-1 * coefficient) + " varX: "+ decisionVariableX + " Container: " + container.getName() + " step: " + step.getName());
 
                 }
@@ -455,35 +455,62 @@ public class DockerProcessInstancePlacementProblemServiceImpl extends NativeLibr
         
         problem.setObjective(linear, OptType.MIN);
     }
+    
+    private void addConstraint_2(Problem problem) {
+        final List<WorkflowElement> nextWorkflowInstances = getRunningWorkflowInstances();
+        for (final WorkflowElement workflowInstance : nextWorkflowInstances) {
+            String executionTimeWorkflowVariable = placementHelper.getExecutionTimeVariable(workflowInstance);
+            String executionTimeViolation = placementHelper.getExecutionTimeViolationVariable(workflowInstance);
+            
+            long deadline = (workflowInstance.getDeadline() / 1000) - START_EPOCH; //- maxRemainingExecutionTime / 1000;
+            long totalRemainingExecutionTimeAndDeployTimesRunning = 0;
+            List<ProcessStep> steps = getRunningStepsForWorkflow(workflowInstance.getName());
+            for (ProcessStep step : steps) {
+            	totalRemainingExecutionTimeAndDeployTimesRunning += getRemainingExecutionTimeAndDeployTimes(step) / 1000;
+            }
+
+            Linear linear = new Linear();
+            linear.add(1, executionTimeWorkflowVariable);
+            linear.add(-1, executionTimeViolation);
+            problem.add(linear, "<=", deadline - (tau_t_startepoch.getTime() / 1000) - totalRemainingExecutionTimeAndDeployTimesRunning);
+            
+            Linear linear2 = new Linear();
+            linear2.add(1, "tau_t_1");
+            linear2.add(1, executionTimeWorkflowVariable);
+            linear2.add(-1, executionTimeViolation);
+            problem.add(linear2, "<=", deadline);
+
+        }
+    }
 
     /**
      * @param problem to be solved
      */
-    private void addConstraint_2(Problem problem) {
-        final List<WorkflowElement> nextWorkflowInstances = getRunningWorkflowInstances();
-        for (final WorkflowElement workflowInstance : nextWorkflowInstances) {
-            Linear linear = new Linear();
-            String executionTimeWorkflowVariable = placementHelper.getExecutionTimeVariable(workflowInstance);
-            String executionTimeViolation = placementHelper.getExecutionTimeViolationVariable(workflowInstance);
-            linear.add(1, "tau_t_1");
-            linear.add(1, executionTimeWorkflowVariable);
-            linear.add(-1, executionTimeViolation);
-            
-//            List<Element> runningStepsForWorkflow = getRunningStepsForWorkflow(workflowInstance.getName());
-//            long maxRemainingExecutionTime = 0;
-//            for (Element runningStep : runningStepsForWorkflow) {
-//                maxRemainingExecutionTime = Math.max(maxRemainingExecutionTime, getRemainingExecutionTimeAndDeployTimes(runningStep));
-//            }
-
-            long rhs = (workflowInstance.getDeadline() / 1000) - START_EPOCH; //- maxRemainingExecutionTime / 1000;
-            problem.add(linear, "<=", rhs);
-            
-//            System.out.println("******************************** CONSTRAINT 2 for workflowelement: " + workflowInstance.getName() +" :: ");
-//            System.out.println("LHS: 1*tau_t_1 + 1*"+executionTimeWorkflowVariable +" <= 1*"+executionTimeViolation +" + "+rhs );
-
-
-        }
-    }
+//    private void addConstraint_2(Problem problem) {
+//        final List<WorkflowElement> nextWorkflowInstances = getRunningWorkflowInstances();
+//        for (final WorkflowElement workflowInstance : nextWorkflowInstances) {
+//            Linear linear = new Linear();
+//            String executionTimeWorkflowVariable = placementHelper.getExecutionTimeVariable(workflowInstance);
+//            String executionTimeViolation = placementHelper.getExecutionTimeViolationVariable(workflowInstance);
+//            linear.add(1, "tau_t_1");
+//            linear.add(1, executionTimeWorkflowVariable);
+//            linear.add(-1, executionTimeViolation);
+//            
+////            List<Element> runningStepsForWorkflow = getRunningStepsForWorkflow(workflowInstance.getName());
+////            long maxRemainingExecutionTime = 0;
+////            for (Element runningStep : runningStepsForWorkflow) {
+////                maxRemainingExecutionTime = Math.max(maxRemainingExecutionTime, getRemainingExecutionTimeAndDeployTimes(runningStep));
+////            }
+//
+//            long rhs = (workflowInstance.getDeadline() / 1000) - START_EPOCH; //- maxRemainingExecutionTime / 1000;
+//            problem.add(linear, "<=", rhs);
+//            
+////            System.out.println("******************************** CONSTRAINT 2 for workflowelement: " + workflowInstance.getName() +" :: ");
+////            System.out.println("LHS: 1*tau_t_1 + 1*"+executionTimeWorkflowVariable +" <= 1*"+executionTimeViolation +" + "+rhs );
+//
+//
+//        }
+//    }
 
     /**
      * next optimization step has to be bigger than the last one

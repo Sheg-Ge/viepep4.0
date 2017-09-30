@@ -12,13 +12,13 @@ public enum VMType {
 //    AWS_SINGLE_CORE(1, 1, 1024, 9, "t2.micro", "aws", 60 * 1000 * 5),
 //    AWS_DUAL_CORE(2, 1, 1024, 15, "t2.micro", "aws", 60 * 1000 * 5),
 //    AWS_QUAD_CORE(3, 1, 1024, 15, "t2.micro", "aws", 60 * 1000 * 5);
-    SINGLE_CORE(1, 1, 1024, 10, "t2.small", "internal", 60 * 1000 * 5),
-    DUAL_CORE(2, 2, 2048, 18, "m3.large", "internal", 60 * 1000 * 5),
-    QUAD_CORE(3, 4, 4096, 30, "m3.xlarge", "internal", 60 * 1000 * 5),
-    AWS_SINGLE_CORE(4, 1, 1024, 15, "t2.small", "aws", 60 * 1000 * 5),
-    AWS_DUAL_CORE(5, 2, 2048, 25, "c2.large", "aws", 60 * 1000 * 5),
-    AWS_QUAD_CORE(6, 4, 4096, 35, "c2.xlarge", "aws", 60 * 1000 * 5),
-    AWS_OCTA_CORE(7, 8, 8192, 50, "c2.xlarge", "aws", 60 * 1000 * 5);
+    SINGLE_CORE(1, 1, 1024, 10, "t2.small", "internal", 60 * 1000 * 60),
+    DUAL_CORE(2, 2, 2048, 18, "m3.large", "internal", 60 * 1000 * 60),
+    QUAD_CORE(3, 4, 4096, 30, "m3.xlarge", "internal", 60 * 1000 * 60),
+    AWS_SINGLE_CORE(4, 1, 1024, 15, "t2.small", "aws", 60 * 1000 * 60),
+    AWS_DUAL_CORE(5, 2, 2048, 25, "c2.large", "aws", 60 * 1000 * 60),
+    AWS_QUAD_CORE(6, 4, 4096, 35, "c2.xlarge", "aws", 60 * 1000 * 60),
+    AWS_OCTA_CORE(7, 8, 8192, 50, "c2.xlarge", "aws", 60 * 1000 * 60);
     
 //    AWS_OCTA_CORE(4, 8, 8192, 40, "m3.xlarge", "aws", 60 * 1000 * 5);
     
